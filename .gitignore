@@ -1,0 +1,13 @@
+target/
+data/
+
+
+.classpath
+.project
+.settings/
+.factorypath
+
+.DS_Store
+.vscode/
+.idea/
+NOTES.md
