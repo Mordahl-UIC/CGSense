@@ -1,11 +1,10 @@
-package cgsense;
+package cgsense.app;
 
 import cgsense.ast.GumTreeRunner;
 
 public class Main {
 
   public static void main(String[] args) {
-
     GumTreeRunner runner = new GumTreeRunner();
 
     String before = """
@@ -22,14 +21,12 @@ public class Main {
           """;
 
     try {
-      var r = runner.diff(before, after);
 
+      var r = runner.diff(before, after);
       r.script().forEach(a -> System.out.printf("%s\n\n", a.toString()));
 
     } catch (Exception e) {
       e.printStackTrace();
     }
-
-    System.out.println("Hello World!");
   }
 }
