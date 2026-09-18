@@ -1,5 +1,5 @@
 JAR=target/cgsense-0.1.0-SNAPSHOT-jar-with-dependencies.jar
-ARGS=
+ARGS=discover --limit 3
 
 build:
 	mvn clean package

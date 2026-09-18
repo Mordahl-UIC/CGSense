@@ -32,7 +32,8 @@ public class RawFetcher {
   }
 
   public String get(String sha, String path) throws IOException, InterruptedException {
-    HttpRequest req = HttpRequest.newBuilder(URI.create(url(sha, path)))
+    String urlString = url(sha, path);
+    HttpRequest req = HttpRequest.newBuilder(URI.create(urlString))
         .timeout(Duration.ofSeconds(30))
         .GET().build();
 

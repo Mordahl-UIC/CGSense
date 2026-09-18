@@ -1,59 +1,42 @@
 package cgsense.app;
 
-import org.kohsuke.github.GHCommit;
-import org.kohsuke.github.GHRepository;
-import org.kohsuke.github.GitHub;
+import java.util.HashMap;
+import java.util.Map;
 
-import cgsense.astdiff.GumTreeRunner;
-import cgsense.discovery.GithubClientFactory;
-import cgsense.discovery.RawFetcher;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+
+import cgsense.app.cmd.Command;
+import cgsense.app.cmd.DiscoverCommand;
 
 public class Main {
 
+  private static final Map<String, Command> COMMANDS = new HashMap<>();
+  static {
+    reigster(new DiscoverCommand());
+  }
+
+  private static void reigster(Command c) {
+    COMMANDS.put(c.name(), c);
+  }
+
   public static void main(String[] args) {
+    if (args.length == 0) {
+      System.err.println("Not enough arguments");
+      return;
+    }
+
+    Command cmd = COMMANDS.get(args[0]);
+    if (cmd == null) {
+      System.err.printf("Unknown command: %s\n", args[0]);
+      return;
+    }
+
+    String[] rest = java.util.Arrays.copyOfRange(args, 1, args.length);
+
     try {
-      GumTreeRunner runner = new GumTreeRunner();
-
-      GitHub client = GithubClientFactory.create();
-
-      GHRepository repo = client.getRepository("jhy/jsoup");
-      RawFetcher raw = new RawFetcher("jhy", "jsoup");
-      System.out.printf("%s\n", repo.getDescription());
-
-      for (GHCommit commit : repo.listCommits()) {
-        if (commit.getParents().size() > 1)
-          continue;
-
-        String afterSha = commit.getSHA1();
-        String beforeSha = commit.getParents().get(0).getSHA1();
-
-        for (GHCommit.File file : commit.listFiles()) {
-          if (file.getFileName().contains(".java")) {
-            if (file.getLinesAdded() < 10) {
-
-              String pathAfter = file.getFileName();
-              String pathBefore = file.getPreviousFilename() != null
-                  ? file.getPreviousFilename()
-                  : file.getFileName();
-
-              String before, after;
-
-              try {
-                before = raw.get(beforeSha, pathBefore);
-                after = raw.get(afterSha, pathAfter);
-
-                var r = runner.diff(before, after);
-                r.script().forEach(a -> System.out.printf("%s\n\n", a.toString()));
-                return;
-
-              } catch (Exception e) {
-                e.printStackTrace();
-              }
-            }
-          }
-        }
-      }
-
+      CommandLine cl = new DefaultParser().parse(cmd.options(), rest);
+      System.exit(cmd.run(cl));
     } catch (Exception e) {
       e.printStackTrace();
     }
