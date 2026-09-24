@@ -1,4 +1,4 @@
-package cgsense.ast;
+package cgsense.astdiff;
 
 import java.io.IOException;
 

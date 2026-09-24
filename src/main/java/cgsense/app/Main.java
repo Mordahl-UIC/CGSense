@@ -1,30 +1,42 @@
 package cgsense.app;
 
-import cgsense.ast.GumTreeRunner;
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+
+import cgsense.app.cmd.Command;
+import cgsense.app.cmd.DiscoverCommand;
 
 public class Main {
 
-  public static void main(String[] args) {
-    GumTreeRunner runner = new GumTreeRunner();
+  private static final Map<String, Command> COMMANDS = new HashMap<>();
+  static {
+    reigster(new DiscoverCommand());
+  }
 
-    String before = """
-        package com.example;
-        public class A {
-            public void a() { return; a(); }
-        }
-            """;
-    String after = """
-        package com.example;
-        public class A {
-            public void a() { return; }
-        }
-          """;
+  private static void reigster(Command c) {
+    COMMANDS.put(c.name(), c);
+  }
+
+  public static void main(String[] args) {
+    if (args.length == 0) {
+      System.err.println("Not enough arguments");
+      return;
+    }
+
+    Command cmd = COMMANDS.get(args[0]);
+    if (cmd == null) {
+      System.err.printf("Unknown command: %s\n", args[0]);
+      return;
+    }
+
+    String[] rest = java.util.Arrays.copyOfRange(args, 1, args.length);
 
     try {
-
-      var r = runner.diff(before, after);
-      r.script().forEach(a -> System.out.printf("%s\n\n", a.toString()));
-
+      CommandLine cl = new DefaultParser().parse(cmd.options(), rest);
+      System.exit(cmd.run(cl));
     } catch (Exception e) {
       e.printStackTrace();
     }
