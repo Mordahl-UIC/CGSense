@@ -3,11 +3,10 @@ package cgsense.app.cmd;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.kohsuke.github.GHRepository;
-import org.kohsuke.github.GitHub;
 
-import cgsense.discovery.GithubClientFactory;
-import cgsense.discovery.RepositoryDiscovery;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import cgsense.discovery.Criteria;
 
 public class DiscoverCommand implements Command {
   @Override
@@ -19,10 +18,6 @@ public class DiscoverCommand implements Command {
   public Options options() {
     return new Options()
         .addOption(Option.builder()
-            .longOpt("minstars")
-            .hasArg().type(Number.class)
-            .build())
-        .addOption(Option.builder()
             .longOpt("limit")
             .hasArg().type(Number.class)
             .build());
@@ -32,11 +27,18 @@ public class DiscoverCommand implements Command {
   public int run(CommandLine cl) throws Exception {
     int limit = Integer.parseInt(cl.getOptionValue("limit"));
 
-    GitHub client = GithubClientFactory.create();
-    RepositoryDiscovery rd = new RepositoryDiscovery(client);
+    String fakeJson = """
+        {
+          "minStars": 10,
+          "buildSystems": ["maven", "gradle"]
+        }
+        """;
+    ObjectMapper mapper = new ObjectMapper();
+    Criteria criteria = mapper.readValue(fakeJson, Criteria.class);
 
-    for (GHRepository repo : rd.topJava(limit)) {
-      System.out.printf("%s stars: %d\n", repo.getFullName(), repo.getStargazersCount());
+    System.out.printf("minStars: %d\n", criteria.minStars());
+    for (String buildSystem : criteria.buildSystems()) {
+      System.out.printf("buildSystem: %s\n", buildSystem);
     }
 
     return 0;
