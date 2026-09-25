@@ -2,6 +2,7 @@ package cgsense.app.cmd;
 
 import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Path;
 import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
@@ -14,6 +15,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cgsense.discovery.Criteria;
 import cgsense.discovery.GithubClientFactory;
+import cgsense.discovery.RepoRecord;
+import cgsense.discovery.RepoRecordWriter;
 import cgsense.discovery.RepositoryDiscovery;
 
 public class DiscoverCommand implements Command {
@@ -33,6 +36,12 @@ public class DiscoverCommand implements Command {
             .longOpt("criteria")
             .hasArg()
             .type(File.class)
+            .build())
+        .addOption(Option.builder()
+            .longOpt("output")
+            .hasArg()
+            .required()
+            .type(File.class)
             .build());
   }
 
@@ -51,6 +60,11 @@ public class DiscoverCommand implements Command {
     return criteria;
   }
 
+  private void writeResults(CommandLine cl, List<RepoRecord> repos) throws Exception {
+    Path output = ((File) cl.getParsedOptionValue("output")).toPath();
+    new RepoRecordWriter().writeJsonLines(repos, output);
+  }
+
   @Override
   public int run(CommandLine cl) throws Exception {
     int limit = Integer.parseInt(cl.getOptionValue("limit"));
@@ -58,10 +72,10 @@ public class DiscoverCommand implements Command {
     GitHub gh = GithubClientFactory.create();
     RepositoryDiscovery disc = new RepositoryDiscovery(gh);
 
-    List<GHRepository> repos = disc.discover(criteria, limit);
+    List<RepoRecord> repos = disc.discover(criteria, limit);
 
-    for (GHRepository repo : repos) {
-      System.out.printf("%s | %d\n", repo.getFullName(), repo.getStargazersCount());
+    if (cl.hasOption("output")) {
+      writeResults(cl, repos);
     }
 
     return 0;

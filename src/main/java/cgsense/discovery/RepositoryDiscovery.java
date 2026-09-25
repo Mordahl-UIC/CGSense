@@ -16,7 +16,7 @@ public class RepositoryDiscovery {
     this.gh = gh;
   }
 
-  public List<GHRepository> discover(Criteria criteria, int limit) {
+  public List<RepoRecord> discover(Criteria criteria, int limit) throws Exception {
     GHRepositorySearchBuilder search = gh.searchRepositories()
         .language("java")
         .sort(GHRepositorySearchBuilder.Sort.STARS)
@@ -26,13 +26,23 @@ public class RepositoryDiscovery {
       search = search.stars(">=" + criteria.minStars());
     }
 
-    List<GHRepository> results = new ArrayList<>();
+    List<RepoRecord> results = new ArrayList<>();
     PagedIterator<GHRepository> it = search.list().iterator();
     while (it.hasNext() && results.size() < limit) {
       GHRepository repo = it.next();
-      results.add(repo);
+      results.add(toRecord(repo));
     }
 
     return results;
+  }
+
+  private RepoRecord toRecord(GHRepository repo) throws Exception {
+    return new RepoRecord(
+        repo.getFullName(),
+        repo.getHtmlUrl().toString(),
+        repo.getDescription(),
+        repo.getStargazersCount(),
+        repo.getForksCount(),
+        repo.getLicense().getSpdxId());
   }
 }
