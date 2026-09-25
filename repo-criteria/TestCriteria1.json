@@ -1,0 +1,4 @@
+{
+  "minStars": 5000,
+  "buildSystems": ["maven"]
+}

@@ -31,15 +31,11 @@ public class DiscoverCommand implements Command {
             .build());
   }
 
-  @Override
-  public int run(CommandLine cl) throws Exception {
+  private Criteria getRepoCriteria(CommandLine cl) throws Exception {
     ObjectMapper mapper = new ObjectMapper();
-
-    int limit = Integer.parseInt(cl.getOptionValue("limit"));
     Criteria criteria = null;
-
     if (cl.hasOption("criteria")) {
-      criteria = mapper.readValue(cl.getOptionValue("criteria"), Criteria.class);
+      criteria = mapper.readValue((File) cl.getParsedOptionValue("criteria"), Criteria.class);
     } else {
       try (InputStream is = DiscoverCommand.class.getClassLoader().getResourceAsStream("default-repo-criteria.json")) {
         criteria = mapper.readValue(is, Criteria.class);
@@ -47,15 +43,18 @@ public class DiscoverCommand implements Command {
         e.printStackTrace();
       }
     }
-    if (criteria == null) {
-      System.err.println("Could not load criteria");
-      return 1;
-    }
+    return criteria;
+  }
 
+  @Override
+  public int run(CommandLine cl) throws Exception {
+    int limit = Integer.parseInt(cl.getOptionValue("limit"));
+    Criteria criteria = getRepoCriteria(cl);
+
+    System.out.printf("limit: %d\n", limit);
     System.out.printf("minStars: %d\n", criteria.minStars());
-    for (
 
-    String buildSystem : criteria.buildSystems()) {
+    for (String buildSystem : criteria.buildSystems()) {
       System.out.printf("buildSystem: %s\n", buildSystem);
     }
 
