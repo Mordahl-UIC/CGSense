@@ -1,0 +1,4 @@
+{
+  "minStars": 1000,
+  "buildSystems": ["maven", "gradle"]
+}
