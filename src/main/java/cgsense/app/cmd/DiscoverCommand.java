@@ -2,14 +2,19 @@ package cgsense.app.cmd;
 
 import java.io.File;
 import java.io.InputStream;
+import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.kohsuke.github.GHRepository;
+import org.kohsuke.github.GitHub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cgsense.discovery.Criteria;
+import cgsense.discovery.GithubClientFactory;
+import cgsense.discovery.RepositoryDiscovery;
 
 public class DiscoverCommand implements Command {
   @Override
@@ -50,12 +55,13 @@ public class DiscoverCommand implements Command {
   public int run(CommandLine cl) throws Exception {
     int limit = Integer.parseInt(cl.getOptionValue("limit"));
     Criteria criteria = getRepoCriteria(cl);
+    GitHub gh = GithubClientFactory.create();
+    RepositoryDiscovery disc = new RepositoryDiscovery(gh);
 
-    System.out.printf("limit: %d\n", limit);
-    System.out.printf("minStars: %d\n", criteria.minStars());
+    List<GHRepository> repos = disc.discover(criteria, limit);
 
-    for (String buildSystem : criteria.buildSystems()) {
-      System.out.printf("buildSystem: %s\n", buildSystem);
+    for (GHRepository repo : repos) {
+      System.out.printf("%s | %d\n", repo.getFullName(), repo.getStargazersCount());
     }
 
     return 0;
