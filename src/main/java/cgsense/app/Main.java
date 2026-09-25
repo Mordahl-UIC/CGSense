@@ -12,6 +12,8 @@ import cgsense.app.cmd.DiscoverCommand;
 public class Main {
 
   private static final Map<String, Command> COMMANDS = new HashMap<>();
+
+  // Whenever there is a new command, add it here so it can be ran
   static {
     reigster(new DiscoverCommand());
   }
