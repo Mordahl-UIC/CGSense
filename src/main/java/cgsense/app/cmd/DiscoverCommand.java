@@ -2,14 +2,22 @@ package cgsense.app.cmd;
 
 import java.io.File;
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
+import org.kohsuke.github.GHRepository;
+import org.kohsuke.github.GitHub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cgsense.discovery.Criteria;
+import cgsense.discovery.GithubClientFactory;
+import cgsense.discovery.RepoRecord;
+import cgsense.discovery.RepoRecordWriter;
+import cgsense.discovery.RepositoryDiscovery;
 
 public class DiscoverCommand implements Command {
   @Override
@@ -27,6 +35,12 @@ public class DiscoverCommand implements Command {
         .addOption(Option.builder()
             .longOpt("criteria")
             .hasArg()
+            .type(File.class)
+            .build())
+        .addOption(Option.builder()
+            .longOpt("output")
+            .hasArg()
+            .required()
             .type(File.class)
             .build());
   }
@@ -46,16 +60,22 @@ public class DiscoverCommand implements Command {
     return criteria;
   }
 
+  private void writeResults(CommandLine cl, List<RepoRecord> repos) throws Exception {
+    Path output = ((File) cl.getParsedOptionValue("output")).toPath();
+    new RepoRecordWriter().writeJsonLines(repos, output);
+  }
+
   @Override
   public int run(CommandLine cl) throws Exception {
     int limit = Integer.parseInt(cl.getOptionValue("limit"));
     Criteria criteria = getRepoCriteria(cl);
+    GitHub gh = GithubClientFactory.create();
+    RepositoryDiscovery disc = new RepositoryDiscovery(gh);
 
-    System.out.printf("limit: %d\n", limit);
-    System.out.printf("minStars: %d\n", criteria.minStars());
+    List<RepoRecord> repos = disc.discover(criteria, limit);
 
-    for (String buildSystem : criteria.buildSystems()) {
-      System.out.printf("buildSystem: %s\n", buildSystem);
+    if (cl.hasOption("output")) {
+      writeResults(cl, repos);
     }
 
     return 0;

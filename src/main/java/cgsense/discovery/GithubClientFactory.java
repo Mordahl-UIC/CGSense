@@ -5,6 +5,8 @@ import java.io.IOException;
 import org.kohsuke.github.GitHub;
 import org.kohsuke.github.GitHubBuilder;
 
+import io.github.cdimascio.dotenv.Dotenv;
+
 /*
  quota: 5000 req/hr on fine-grained token
  analyzing: 100 repos @ 100 commits/repo (100 * 100) = 10000 req per run
@@ -14,7 +16,8 @@ import org.kohsuke.github.GitHubBuilder;
 
 public final class GithubClientFactory {
   public static GitHub create() throws IOException {
-    String token = System.getenv("GITHUB_TOKEN");
+    Dotenv dotenv = Dotenv.load();
+    String token = dotenv.get("GITHUB_TOKEN");
     if (token == null || token.isEmpty()) {
       throw new IllegalStateException("Missing GITHUB_TOKEN environment variable");
     }
