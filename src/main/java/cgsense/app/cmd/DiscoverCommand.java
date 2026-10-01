@@ -8,7 +8,6 @@ import java.util.List;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
-import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GitHub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;

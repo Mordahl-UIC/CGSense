@@ -6,5 +6,6 @@ public record RepoRecord(
     String description,
     int stars,
     int forks,
-    String license) {
+    String license,
+    String buildSystem) {
 }

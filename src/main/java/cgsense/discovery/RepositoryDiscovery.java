@@ -1,9 +1,11 @@
 package cgsense.discovery;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.kohsuke.github.GHDirection;
+import org.kohsuke.github.GHFileNotFoundException;
 import org.kohsuke.github.GHRepository;
 import org.kohsuke.github.GHRepositorySearchBuilder;
 import org.kohsuke.github.GitHub;
@@ -30,19 +32,53 @@ public class RepositoryDiscovery {
     PagedIterator<GHRepository> it = search.list().iterator();
     while (it.hasNext() && results.size() < limit) {
       GHRepository repo = it.next();
-      results.add(toRecord(repo));
+      String matchedBuildSystem = matchBuildSystem(repo, criteria.buildSystems());
+      if (matchedBuildSystem != null) {
+        results.add(toRecord(repo, matchedBuildSystem));
+      }
     }
 
     return results;
   }
 
-  private RepoRecord toRecord(GHRepository repo) throws Exception {
+  private String matchBuildSystem(GHRepository repo, Iterable<String> buildSystems) {
+    if (!buildSystems.iterator().hasNext()) {
+      return "unspecified";
+    }
+
+    for (String buildSys : buildSystems) {
+      try {
+        repo.getFileContent(buildSystemMarkerFile(buildSys));
+        return buildSys;
+      } catch (GHFileNotFoundException notFound) {
+        continue;
+      } catch (IOException other) {
+        return null;
+      }
+    }
+
+    return null;
+  }
+
+  private String buildSystemMarkerFile(String buildSys) {
+    switch (buildSys.toLowerCase()) {
+      case "maven":
+        return "pom.xml";
+      case "gradle":
+        return "build.gradle";
+      default:
+        throw new IllegalArgumentException("Unrecognized build system\n");
+    }
+  }
+
+  private RepoRecord toRecord(GHRepository repo, String buildSystem) throws Exception {
     return new RepoRecord(
         repo.getFullName(),
         repo.getHtmlUrl().toString(),
         repo.getDescription(),
         repo.getStargazersCount(),
         repo.getForksCount(),
-        repo.getLicense().getSpdxId());
+        repo.getLicense().getSpdxId(),
+        buildSystem);
   }
 }
