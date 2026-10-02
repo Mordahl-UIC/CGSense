@@ -19,6 +19,14 @@ public class RepositoryDiscovery {
     this.gh = gh;
   }
 
+  private boolean hasEnglishLetters(String s) {
+    if (s == null) {
+      return false;
+    }
+
+    return s.matches(",*[a-zA-Z].*");
+  }
+
   public List<RepoRecord> discover(Criteria criteria, int limit) throws Exception {
     GHRepositorySearchBuilder search = gh.searchRepositories()
         .language("java")
@@ -33,6 +41,10 @@ public class RepositoryDiscovery {
     PagedIterator<GHRepository> it = search.list().iterator();
     while (it.hasNext() && results.size() < limit) {
       GHRepository repo = it.next();
+      String description = repo.getDescription();
+      if (!hasEnglishLetters(description)) {
+        continue;
+      }
       RepoRecord evaluation = evaluate(repo, criteria);
       if (evaluation != null) {
         results.add(evaluation);
@@ -72,7 +84,6 @@ public class RepositoryDiscovery {
     }
 
     String license = repo.getLicense() != null ? repo.getLicense().getSpdxId() : null;
-
     if (license == null) {
       return null;
     }
