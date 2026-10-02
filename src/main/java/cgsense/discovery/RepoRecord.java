@@ -3,9 +3,9 @@ package cgsense.discovery;
 public record RepoRecord(
     String fullName,
     String url,
-    String description,
     int stars,
-    int forks,
     String license,
-    String buildSystem) {
+    String buildSystem,
+    int javaFileCount,
+    String entryPointKind) {
 }

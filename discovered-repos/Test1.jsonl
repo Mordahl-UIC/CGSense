@@ -1,3 +1,19 @@
-{"fullName":"krahets/hello-algo","url":"https://github.com/krahets/hello-algo","description":"《Hello 算法》：动画图解、一键运行的数据结构与算法教程。支持简中、繁中、English、日本語，提供 Python, Java, C++, C, C#, JS, Go, Swift, Rust, Ruby, Kotlin, TS, Dart 等代码实现","stars":130467,"forks":15511,"license":"NOASSERTION"}
-{"fullName":"iluwatar/java-design-patterns","url":"https://github.com/iluwatar/java-design-patterns","description":"Design patterns implemented in Java","stars":94728,"forks":27369,"license":"NOASSERTION"}
-{"fullName":"Stirling-Tools/Stirling-PDF","url":"https://github.com/Stirling-Tools/Stirling-PDF","description":"#1 PDF Application on GitHub that lets you edit PDFs on any device anywhere","stars":93008,"forks":9466,"license":"NOASSERTION"}
+{"fullName":"TheAlgorithms/Java","url":"https://github.com/TheAlgorithms/Java","stars":66338,"license":"MIT","buildSystem":"maven","javaFileCount":842,"entryPointKind":"Test"}
+{"fullName":"ReactiveX/RxJava","url":"https://github.com/ReactiveX/RxJava","stars":48185,"license":"Apache-2.0","buildSystem":"gradle","javaFileCount":942,"entryPointKind":"Test"}
+{"fullName":"crossoverJie/JCSprout","url":"https://github.com/crossoverJie/JCSprout","stars":26827,"license":"MIT","buildSystem":"maven","javaFileCount":86,"entryPointKind":"Test"}
+{"fullName":"floci-io/floci","url":"https://github.com/floci-io/floci","stars":26223,"license":"MIT","buildSystem":"maven","javaFileCount":2475,"entryPointKind":"Test"}
+{"fullName":"alibaba/fastjson","url":"https://github.com/alibaba/fastjson","stars":25585,"license":"Apache-2.0","buildSystem":"maven","javaFileCount":193,"entryPointKind":"Test"}
+{"fullName":"brettwooldridge/HikariCP","url":"https://github.com/brettwooldridge/HikariCP","stars":21232,"license":"Apache-2.0","buildSystem":"maven","javaFileCount":49,"entryPointKind":"Test"}
+{"fullName":"mybatis/mybatis-3","url":"https://github.com/mybatis/mybatis-3","stars":20448,"license":"Apache-2.0","buildSystem":"maven","javaFileCount":393,"entryPointKind":"Test"}
+{"fullName":"LMAX-Exchange/disruptor","url":"https://github.com/LMAX-Exchange/disruptor","stars":18485,"license":"Apache-2.0","buildSystem":"gradle","javaFileCount":71,"entryPointKind":"Test"}
+{"fullName":"APIJSON/APIJSON","url":"https://github.com/APIJSON/APIJSON","stars":18401,"license":"NOASSERTION","buildSystem":"maven","javaFileCount":69,"entryPointKind":"Test"}
+{"fullName":"justauth/JustAuth","url":"https://github.com/justauth/JustAuth","stars":17531,"license":"MIT","buildSystem":"maven","javaFileCount":132,"entryPointKind":"Test"}
+{"fullName":"Grasscutters/Grasscutter","url":"https://github.com/Grasscutters/Grasscutter","stars":16815,"license":"AGPL-3.0","buildSystem":"gradle","javaFileCount":1535,"entryPointKind":"Test"}
+{"fullName":"cryptomator/cryptomator","url":"https://github.com/cryptomator/cryptomator","stars":16232,"license":"GPL-3.0","buildSystem":"maven","javaFileCount":383,"entryPointKind":"Test"}
+{"fullName":"Konloch/bytecode-viewer","url":"https://github.com/Konloch/bytecode-viewer","stars":15662,"license":"GPL-3.0","buildSystem":"maven","javaFileCount":300,"entryPointKind":"Test"}
+{"fullName":"supertokens/supertokens-core","url":"https://github.com/supertokens/supertokens-core","stars":15328,"license":"NOASSERTION","buildSystem":"gradle","javaFileCount":372,"entryPointKind":"Test"}
+{"fullName":"redis/jedis","url":"https://github.com/redis/jedis","stars":12368,"license":"MIT","buildSystem":"maven","javaFileCount":547,"entryPointKind":"Test"}
+{"fullName":"pagehelper-org/Mybatis-PageHelper","url":"https://github.com/pagehelper-org/Mybatis-PageHelper","stars":12333,"license":"MIT","buildSystem":"maven","javaFileCount":86,"entryPointKind":"Test"}
+{"fullName":"jhy/jsoup","url":"https://github.com/jhy/jsoup","stars":11400,"license":"MIT","buildSystem":"maven","javaFileCount":96,"entryPointKind":"Test"}
+{"fullName":"square/javapoet","url":"https://github.com/square/javapoet","stars":10842,"license":"Apache-2.0","buildSystem":"maven","javaFileCount":17,"entryPointKind":"Test"}
+{"fullName":"TooTallNate/Java-WebSocket","url":"https://github.com/TooTallNate/Java-WebSocket","stars":10806,"license":"MIT","buildSystem":"maven","javaFileCount":78,"entryPointKind":"Test"}
