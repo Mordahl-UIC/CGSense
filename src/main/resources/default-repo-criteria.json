@@ -1,4 +1,10 @@
 {
-  "minStars": 1000,
-  "buildSystems": ["maven", "gradle"]
+  "minStars": 10000,
+  "buildSystems": ["maven", "gradle"],
+  "excludeForks": true,
+  "excludeArchived": true,
+  "excludeAndroid": true,
+  "minJavaFiles": 10,
+  "maxModules": 1,
+  "requireMainOrTestEntryPoint": true
 }
