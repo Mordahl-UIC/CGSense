@@ -12,7 +12,7 @@ import java.util.stream.Stream;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public final class JsonlReader {
+public class JsonlReader {
   private static final ObjectMapper MAPPER = new ObjectMapper().findAndRegisterModules();
 
   public static <T> Stream<T> read(Path file, Class<T> type) throws IOException {
