@@ -11,7 +11,7 @@ import java.time.Duration;
 import java.util.Arrays;
 import java.util.stream.Collectors;
 
-public class RawFetcher {
+public class RawFileFetcher {
   private final HttpClient http = HttpClient.newBuilder()
       .followRedirects(HttpClient.Redirect.NORMAL)
       .connectTimeout(Duration.ofSeconds(10))
@@ -19,7 +19,7 @@ public class RawFetcher {
 
   private final String owner, name;
 
-  public RawFetcher(String owner, String name) {
+  public RawFileFetcher(String owner, String name) {
     this.owner = owner;
     this.name = name;
   }

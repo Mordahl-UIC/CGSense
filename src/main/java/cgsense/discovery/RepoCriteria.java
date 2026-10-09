@@ -2,7 +2,7 @@ package cgsense.discovery;
 
 import java.util.List;
 
-public record Criteria(
+public record RepoCriteria(
     int minStars,
     List<String> buildSystems,
     boolean excludeForks,

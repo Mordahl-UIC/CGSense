@@ -12,10 +12,12 @@ import org.kohsuke.github.GHTreeEntry;
 import org.kohsuke.github.GitHub;
 import org.kohsuke.github.PagedIterator;
 
-public class RepositoryDiscovery {
+import cgsense.model.RepoRecord;
+
+public class RepoDiscovery {
   private final GitHub gh;
 
-  public RepositoryDiscovery(GitHub gh) {
+  public RepoDiscovery(GitHub gh) {
     this.gh = gh;
   }
 
@@ -27,7 +29,7 @@ public class RepositoryDiscovery {
     return s.matches(",*[a-zA-Z].*");
   }
 
-  public List<RepoRecord> discover(Criteria criteria, int limit) throws Exception {
+  public List<RepoRecord> discover(RepoCriteria criteria, int limit) throws Exception {
     GHRepositorySearchBuilder search = gh.searchRepositories()
         .language("java")
         .sort(GHRepositorySearchBuilder.Sort.STARS)
@@ -54,7 +56,12 @@ public class RepositoryDiscovery {
     return results;
   }
 
-  private RepoRecord evaluate(GHRepository repo, Criteria criteria) throws IOException {
+  private RepoRecord evaluate(GHRepository repo, RepoCriteria criteria) throws IOException {
+    String license = repo.getLicense() != null ? repo.getLicense().getSpdxId() : null;
+    if (license == null) {
+      return null;
+    }
+
     String sha = repo.getBranch(repo.getDefaultBranch()).getSHA1();
     GHTree tree = repo.getTreeRecursive(sha, 1);
     List<String> paths = tree.getTree().stream()
@@ -80,11 +87,6 @@ public class RepositoryDiscovery {
 
     boolean isAndroid = paths.stream().anyMatch(p -> p.endsWith("AndroidManifest.xml"));
     if (criteria.excludeAndroid() && isAndroid) {
-      return null;
-    }
-
-    String license = repo.getLicense() != null ? repo.getLicense().getSpdxId() : null;
-    if (license == null) {
       return null;
     }
 

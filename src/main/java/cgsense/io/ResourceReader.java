@@ -1,4 +1,4 @@
-package cgsense.reader;
+package cgsense.io;
 
 import java.io.IOException;
 import java.io.InputStream;

@@ -1,4 +1,4 @@
-package cgsense.discovery;
+package cgsense.model;
 
 public record RepoRecord(
     String fullName,

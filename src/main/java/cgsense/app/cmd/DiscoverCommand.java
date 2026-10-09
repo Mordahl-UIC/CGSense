@@ -12,11 +12,11 @@ import org.kohsuke.github.GitHub;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import cgsense.discovery.Criteria;
+import cgsense.discovery.RepoCriteria;
 import cgsense.discovery.GithubClientFactory;
-import cgsense.discovery.RepoRecord;
-import cgsense.discovery.RepoRecordWriter;
-import cgsense.discovery.RepositoryDiscovery;
+import cgsense.model.RepoRecord;
+import cgsense.io.JsonlWriter;
+import cgsense.discovery.RepoDiscovery;
 
 public class DiscoverCommand implements Command {
   @Override
@@ -44,14 +44,14 @@ public class DiscoverCommand implements Command {
             .build());
   }
 
-  private Criteria getRepoCriteria(CommandLine cl) throws Exception {
+  private RepoCriteria getRepoCriteria(CommandLine cl) throws Exception {
     ObjectMapper mapper = new ObjectMapper();
-    Criteria criteria = null;
+    RepoCriteria criteria = null;
     if (cl.hasOption("criteria")) {
-      criteria = mapper.readValue((File) cl.getParsedOptionValue("criteria"), Criteria.class);
+      criteria = mapper.readValue((File) cl.getParsedOptionValue("criteria"), RepoCriteria.class);
     } else {
       try (InputStream is = DiscoverCommand.class.getClassLoader().getResourceAsStream("default-repo-criteria.json")) {
-        criteria = mapper.readValue(is, Criteria.class);
+        criteria = mapper.readValue(is, RepoCriteria.class);
       } catch (Exception e) {
         e.printStackTrace();
       }
@@ -61,15 +61,15 @@ public class DiscoverCommand implements Command {
 
   private void writeResults(CommandLine cl, List<RepoRecord> repos) throws Exception {
     Path output = ((File) cl.getParsedOptionValue("output")).toPath();
-    new RepoRecordWriter().writeJsonLines(repos, output);
+    new JsonlWriter<RepoRecord>().writeJsonLines(repos, output);
   }
 
   @Override
   public int run(CommandLine cl) throws Exception {
     int limit = Integer.parseInt(cl.getOptionValue("limit"));
-    Criteria criteria = getRepoCriteria(cl);
+    RepoCriteria criteria = getRepoCriteria(cl);
     GitHub gh = GithubClientFactory.create();
-    RepositoryDiscovery disc = new RepositoryDiscovery(gh);
+    RepoDiscovery disc = new RepoDiscovery(gh);
 
     List<RepoRecord> repos = disc.discover(criteria, limit);
 
