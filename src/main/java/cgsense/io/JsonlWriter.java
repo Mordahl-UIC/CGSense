@@ -7,16 +7,22 @@ import java.util.List;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-public class JsonlWriter<T> {
+public class JsonlWriter {
+  private static final ObjectMapper MAPPER = new ObjectMapper().findAndRegisterModules();
 
-  private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
-
-  public void writeJsonLines(List<T> itemList, Path path) throws Exception {
-    try (Writer w = Files.newBufferedWriter(path)) {
+  public static <T> void writeMultiple(List<T> itemList, Path file) throws Exception {
+    try (Writer w = Files.newBufferedWriter(file)) {
       for (T item : itemList) {
-        w.write(mapper.writeValueAsString(item));
+        w.write(MAPPER.writeValueAsString(item));
         w.write('\n');
       }
+    }
+  }
+
+  public static <T> void write(T item, Path path) throws Exception {
+    try (Writer w = Files.newBufferedWriter(path)) {
+      w.write(MAPPER.writeValueAsString(item));
+      w.write('\n');
     }
   }
 }

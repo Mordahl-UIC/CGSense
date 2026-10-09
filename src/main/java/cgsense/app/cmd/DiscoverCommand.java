@@ -61,7 +61,7 @@ public class DiscoverCommand implements Command {
 
   private void writeResults(CommandLine cl, List<RepoRecord> repos) throws Exception {
     Path output = ((File) cl.getParsedOptionValue("output")).toPath();
-    new JsonlWriter<RepoRecord>().writeJsonLines(repos, output);
+    JsonlWriter.writeMultiple(repos, output);
   }
 
   @Override
