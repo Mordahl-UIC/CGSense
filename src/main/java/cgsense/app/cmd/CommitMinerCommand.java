@@ -6,7 +6,6 @@ import cgsense.io.JsonlReader;
 import cgsense.mining.CommitMiner;
 import cgsense.model.RepoRecord;
 
-import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Scanner;
@@ -27,14 +26,13 @@ public class CommitMinerCommand implements Command {
         .addOption(Option.builder()
             .longOpt("repos")
             .hasArg()
-            .type(File.class)
             .required()
-            .build())
+            .get())
         .addOption(Option.builder()
             .longOpt("output")
             .hasArg()
             .required()
-            .build());
+            .get());
   }
 
   @Override
@@ -42,7 +40,7 @@ public class CommitMinerCommand implements Command {
     Path reposFile = Path.of(cl.getOptionValue("repos"));
     Path outputDir = Path.of(cl.getOptionValue("output"));
 
-    Path outputFile = Path.of(outputDir.toUri() + "pairs.jsonl");
+    Path outputFile = outputDir.resolve("pairs.jsonl");
     Path clonesDir = outputDir.resolve("clones");
     boolean overwrite = true;
 
@@ -50,16 +48,14 @@ public class CommitMinerCommand implements Command {
       Scanner scanner = new Scanner(System.in);
       System.out.println("Commit pairs file already exists. Overwrite? (Y/N)");
       String response = scanner.nextLine();
-      switch (response) {
-        case "Y":
-          overwrite = true;
-          break;
-        case "N":
-          overwrite = false;
-          break;
-        default:
+      switch (response.trim().toUpperCase()) {
+        case "Y" -> overwrite = true;
+        case "N" -> overwrite = false;
+        default -> {
           System.out.println("Response unrecognized. Terminating.");
-          break;
+          scanner.close();
+          return 1;
+        }
       }
       scanner.close();
     }

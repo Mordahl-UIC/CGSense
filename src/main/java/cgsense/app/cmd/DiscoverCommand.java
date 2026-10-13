@@ -3,7 +3,6 @@ package cgsense.app.cmd;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Path;
-import java.util.List;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
@@ -14,8 +13,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import cgsense.discovery.RepoCriteria;
 import cgsense.discovery.GithubClientFactory;
-import cgsense.model.RepoRecord;
-import cgsense.io.JsonlWriter;
 import cgsense.discovery.RepoDiscovery;
 
 public class DiscoverCommand implements Command {
@@ -30,19 +27,16 @@ public class DiscoverCommand implements Command {
         .addOption(Option.builder()
             .longOpt("limit")
             .hasArg()
-            .type(Number.class)
-            .build())
+            .get())
         .addOption(Option.builder()
             .longOpt("criteria")
             .hasArg()
-            .type(File.class)
-            .build())
+            .get())
         .addOption(Option.builder()
             .longOpt("output")
             .hasArg()
             .required()
-            .type(File.class)
-            .build());
+            .get());
   }
 
   private RepoCriteria getRepoCriteria(CommandLine cl) throws Exception {
@@ -60,23 +54,18 @@ public class DiscoverCommand implements Command {
     return criteria;
   }
 
-  private void writeResults(CommandLine cl, List<RepoRecord> repos) throws Exception {
-    Path output = ((File) cl.getParsedOptionValue("output")).toPath();
-    JsonlWriter.writeMultiple(repos, output);
-  }
-
   @Override
   public int run(CommandLine cl) throws Exception {
     int limit = Integer.parseInt(cl.getOptionValue("limit"));
+
+    Path outputDir = Path.of(cl.getOptionValue("output"));
+    Path outputFile = outputDir.resolve("repos.jsonl");
+
     RepoCriteria criteria = getRepoCriteria(cl);
     GitHub gh = GithubClientFactory.create();
-    RepoDiscovery disc = new RepoDiscovery(gh);
+    RepoDiscovery disc = new RepoDiscovery(gh, outputFile);
 
-    List<RepoRecord> repos = disc.discover(criteria, limit);
-
-    if (cl.hasOption("output")) {
-      writeResults(cl, repos);
-    }
+    disc.discover(criteria, limit);
 
     return 0;
   }

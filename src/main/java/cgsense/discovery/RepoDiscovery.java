@@ -1,6 +1,8 @@
 package cgsense.discovery;
 
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,13 +14,16 @@ import org.kohsuke.github.GHTreeEntry;
 import org.kohsuke.github.GitHub;
 import org.kohsuke.github.PagedIterator;
 
+import cgsense.io.JsonlWriter;
 import cgsense.model.RepoRecord;
 
 public class RepoDiscovery {
   private final GitHub gh;
+  private final Path outputFile;
 
-  public RepoDiscovery(GitHub gh) {
+  public RepoDiscovery(GitHub gh, Path outputFile) {
     this.gh = gh;
+    this.outputFile = outputFile;
   }
 
   private boolean hasEnglishLetters(String s) {
@@ -29,7 +34,7 @@ public class RepoDiscovery {
     return s.matches(",*[a-zA-Z].*");
   }
 
-  public List<RepoRecord> discover(RepoCriteria criteria, int limit) throws Exception {
+  public void discover(RepoCriteria criteria, int limit) throws Exception {
     GHRepositorySearchBuilder search = gh.searchRepositories()
         .language("java")
         .sort(GHRepositorySearchBuilder.Sort.STARS)
@@ -39,21 +44,22 @@ public class RepoDiscovery {
       search = search.stars(">=" + criteria.minStars());
     }
 
-    List<RepoRecord> results = new ArrayList<>();
-    PagedIterator<GHRepository> it = search.list().iterator();
-    while (it.hasNext() && results.size() < limit) {
-      GHRepository repo = it.next();
-      String description = repo.getDescription();
-      if (!hasEnglishLetters(description)) {
-        continue;
-      }
-      RepoRecord evaluation = evaluate(repo, criteria);
-      if (evaluation != null) {
-        results.add(evaluation);
+    try (JsonlWriter writer = JsonlWriter.open(outputFile, StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
+      List<RepoRecord> results = new ArrayList<>();
+      PagedIterator<GHRepository> it = search.list().iterator();
+      while (it.hasNext() && results.size() < limit) {
+        GHRepository repo = it.next();
+        String description = repo.getDescription();
+        if (!hasEnglishLetters(description)) {
+          continue;
+        }
+        RepoRecord evaluation = evaluate(repo, criteria);
+        if (evaluation != null) {
+          writer.write(evaluation);
+        }
       }
     }
 
-    return results;
   }
 
   private RepoRecord evaluate(GHRepository repo, RepoCriteria criteria) throws IOException {
