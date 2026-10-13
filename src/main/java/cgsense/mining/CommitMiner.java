@@ -4,10 +4,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
+import org.eclipse.jgit.diff.Edit;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
@@ -19,6 +23,7 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
 import cgsense.io.JsonlWriter;
 import cgsense.model.CommitPair;
 import cgsense.model.RepoRecord;
+import cgsense.model.ChangedFile;
 
 public class CommitMiner {
 
@@ -44,9 +49,24 @@ public class CommitMiner {
   public void mine(String fullRepoName, String cloneUrl) {
     System.out.printf("Cloning and Mining: %s --- %s\n", fullRepoName, cloneUrl);
     String slug = fullRepoName.replace("/", "_");
+    Path gitDir = clonesDir.resolve(slug);
+
+    if (!Files.exists(gitDir)) {
+      try {
+        Git.cloneRepository()
+            .setURI(cloneUrl)
+            .setDirectory(gitDir.toFile())
+            .setBare(true)
+            .call()
+            .close();
+      } catch (GitAPIException e) {
+        System.err.println("Failed to clone repo: " + fullRepoName);
+        return;
+      }
+    }
 
     try (
-        Repository repo = openRepo(cloneUrl, clonesDir.resolve(slug));
+        Repository repo = new FileRepositoryBuilder().setGitDir(gitDir.toFile()).build();
         RevWalk walk = new RevWalk(repo);
         DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE);
         JsonlWriter writer = JsonlWriter.open(this.outputFile, StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
@@ -57,6 +77,7 @@ public class CommitMiner {
         return;
       }
 
+      diff.setRepository(repo);
       walk.markStart(walk.parseCommit(head));
 
       for (RevCommit child : walk) {
@@ -65,32 +86,38 @@ public class CommitMiner {
         }
         RevCommit parent = child.getParent(0);
 
+        List<ChangedFile> files = changedFiles(diff, parent, child);
+
+        System.out.printf("Changed file: %s | %d+ | %d-\n", files.get(0).fileName(), files.get(0).numLinesAdded(),
+            files.get(0).numLinesDeleted());
+
         writer.write(new CommitPair(fullRepoName, parent.name(), child.name()));
 
         break;
       }
-    } catch (GitAPIException | IOException e) {
+    } catch (IOException e) {
       System.out.println("Commit miner failed on " + fullRepoName + " with exception: " + e);
       return;
     }
   }
 
-  /*
-   * Clone if repo doesnt exist in memory.
-   */
-  private Repository openRepo(String cloneUrl, Path gitDir) throws IOException, GitAPIException {
-    if (!Files.exists(gitDir)) {
+  private List<ChangedFile> changedFiles(DiffFormatter diff, RevCommit parent, RevCommit child) {
+    List<ChangedFile> files = new ArrayList<>();
 
-      Files.createDirectories(gitDir);
+    try {
+      for (DiffEntry entry : diff.scan(parent, child)) {
+        int added = 0;
+        int deleted = 0;
+        for (Edit edit : diff.toFileHeader(entry).toEditList()) {
+          deleted += edit.getLengthA();
+          added += edit.getLengthB();
+        }
 
-      Git.cloneRepository()
-          .setURI(cloneUrl)
-          .setDirectory(gitDir.toFile())
-          .setBare(true)
-          .call()
-          .close();
+        files.add(new ChangedFile(entry.getNewPath(), added, deleted));
+      }
+    } catch (IOException e) {
     }
-    return new FileRepositoryBuilder().setGitDir(gitDir.toFile()).setMustExist(true).build();
-  }
 
+    return files;
+  }
 }
