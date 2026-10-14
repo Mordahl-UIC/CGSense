@@ -7,6 +7,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 
 import cgsense.app.cmd.Command;
+import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
 
 public class Main {
@@ -16,6 +17,7 @@ public class Main {
   // Whenever there is a new command, add it here so it can be ran
   static {
     reigster(new DiscoverCommand());
+    reigster(new CommitMinerCommand());
   }
 
   private static void reigster(Command c) {
