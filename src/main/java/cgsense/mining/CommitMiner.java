@@ -25,6 +25,16 @@ import cgsense.model.CommitPair;
 import cgsense.model.RepoRecord;
 import cgsense.model.ChangedFile;
 
+/*
+ * Criteria for choosing commits
+ * Exactly 1 parent commit
+ * Atleast one .java file changed
+ * No build file changed
+ * No test file changed
+ * At most 100 changes application lines?
+ * Parent and Child both compile including tests on the same JDK
+ * */
+
 public class CommitMiner {
 
   private final Path clonesDir;
@@ -87,18 +97,36 @@ public class CommitMiner {
         RevCommit parent = child.getParent(0);
 
         List<ChangedFile> files = changedFiles(diff, parent, child);
-
-        System.out.printf("Changed file: %s | %d+ | %d-\n", files.get(0).fileName(), files.get(0).numLinesAdded(),
-            files.get(0).numLinesDeleted());
-
-        writer.write(new CommitPair(fullRepoName, parent.name(), child.name()));
-
-        break;
+        CommitPair pair = select(new CommitPair(fullRepoName, parent.name(), child.name(), files));
+        if (pair != null) {
+          writer.write(pair);
+        }
       }
     } catch (IOException e) {
       System.out.println("Commit miner failed on " + fullRepoName + " with exception: " + e);
       return;
     }
+  }
+
+  private static final int MAX_JAVA_LINES = 20;
+
+  private CommitPair select(CommitPair pair) {
+    int javaLines = 0;
+    for (ChangedFile f : pair.files()) {
+      String p = f.filePath();
+      if (isTest(p) || isBuildFile(p)) {
+        return null;
+      }
+      if (isMainJava(p)) {
+        javaLines += f.numLinesAdded() + f.numLinesDeleted();
+      }
+    }
+
+    if (javaLines == 0 || javaLines >= MAX_JAVA_LINES) {
+      return null;
+    }
+
+    return pair;
   }
 
   private List<ChangedFile> changedFiles(DiffFormatter diff, RevCommit parent, RevCommit child) {
@@ -119,5 +147,28 @@ public class CommitMiner {
     }
 
     return files;
+  }
+
+  private boolean isMainJava(String p) {
+    return p.endsWith(".java") && !isTest(p) && !isGenerated(p);
+
+  }
+
+  private boolean isTest(String p) {
+    String s = "/" + p;
+    return s.contains("/test/") || s.contains("/tests/");
+  }
+
+  private boolean isGenerated(String p) {
+    return ("/" + p).contains("/generated/");
+  }
+
+  private boolean isBuildFile(String p) {
+    String fileName = p.substring(p.lastIndexOf('/') + 1);
+    return fileName.equals("pom.xml")
+        || fileName.startsWith("build.gradle")
+        || fileName.startsWith("settings.gradle")
+        || fileName.equals("gradle.properties");
+
   }
 }

@@ -1,7 +1,7 @@
 package cgsense.model;
 
 public record ChangedFile(
-    String fileName,
+    String filePath,
     int numLinesAdded,
     int numLinesDeleted) {
 }
