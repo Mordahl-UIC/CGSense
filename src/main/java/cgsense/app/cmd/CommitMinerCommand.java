@@ -14,7 +14,7 @@ import java.util.stream.Stream;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 
-public class CommitMinerCommand implements Command {
+public class CommitMinerCommand implements CliCommand {
   @Override
   public String name() {
     return "mine-pairs";

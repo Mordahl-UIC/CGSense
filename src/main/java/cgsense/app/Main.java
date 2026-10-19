@@ -6,13 +6,13 @@ import java.util.Map;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 
-import cgsense.app.cmd.Command;
+import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
 
 public class Main {
 
-  private static final Map<String, Command> COMMANDS = new HashMap<>();
+  private static final Map<String, CliCommand> COMMANDS = new HashMap<>();
 
   // Whenever there is a new command, add it here so it can be ran
   static {
@@ -20,7 +20,7 @@ public class Main {
     reigster(new CommitMinerCommand());
   }
 
-  private static void reigster(Command c) {
+  private static void reigster(CliCommand c) {
     COMMANDS.put(c.name(), c);
   }
 
@@ -30,7 +30,7 @@ public class Main {
       return;
     }
 
-    Command cmd = COMMANDS.get(args[0]);
+    CliCommand cmd = COMMANDS.get(args[0]);
     if (cmd == null) {
       System.err.printf("Unknown command: %s\n", args[0]);
       return;
