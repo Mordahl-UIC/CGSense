@@ -7,11 +7,11 @@ import java.util.List;
 
 public class CommandRunner {
 
-  public CommandResult run(Path dir, String... argv) {
+  public static CommandResult run(Path dir, String... argv) {
     return run(List.of(argv), dir);
   }
 
-  public CommandResult run(List<String> argv, Path dir) {
+  private static CommandResult run(List<String> argv, Path dir) {
     long start = System.nanoTime();
     argv = List.copyOf(argv);
 
