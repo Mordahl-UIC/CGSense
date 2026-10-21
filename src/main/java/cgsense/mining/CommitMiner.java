@@ -57,12 +57,13 @@ public class CommitMiner {
   }
 
   public void mine(String fullRepoName, String cloneUrl) {
-    System.out.printf("Cloning and Mining: %s --- %s\n", fullRepoName, cloneUrl);
+    System.out.printf("Mining: %s --- %s\n", fullRepoName, cloneUrl);
     String slug = fullRepoName.replace("/", "_");
     Path gitDir = clonesDir.resolve(slug);
 
     if (!Files.exists(gitDir)) {
       try {
+        System.out.printf("Cloning repository %s \n", fullRepoName);
         Git.cloneRepository()
             .setURI(cloneUrl)
             .setDirectory(gitDir.toFile())
@@ -90,6 +91,8 @@ public class CommitMiner {
       diff.setRepository(repo);
       walk.markStart(walk.parseCommit(head));
 
+      System.out.printf("Walking commit history of %s\n", fullRepoName);
+      int numCommits = 0;
       for (RevCommit child : walk) {
         if (child.getParentCount() == 0 || child.getParentCount() > 1) {
           continue;
@@ -99,9 +102,12 @@ public class CommitMiner {
         List<ChangedFile> files = changedFiles(diff, parent, child);
         CommitPair pair = select(new CommitPair(fullRepoName, parent.name(), child.name(), files));
         if (pair != null) {
+          numCommits++;
           writer.write(pair);
         }
       }
+
+      System.out.printf("Finished verifying %s. Found %d commits\n", fullRepoName, numCommits);
     } catch (IOException e) {
       System.out.println("Commit miner failed on " + fullRepoName + " with exception: " + e);
       return;
