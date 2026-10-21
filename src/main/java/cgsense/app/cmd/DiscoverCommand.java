@@ -15,7 +15,7 @@ import cgsense.discovery.RepoCriteria;
 import cgsense.discovery.GithubClientFactory;
 import cgsense.discovery.RepoDiscovery;
 
-public class DiscoverCommand implements Command {
+public class DiscoverCommand implements CliCommand {
   @Override
   public String name() {
     return "discover";
