@@ -11,7 +11,7 @@ public class CommandRunner {
     return run(List.of(argv), dir);
   }
 
-  private static CommandResult run(List<String> argv, Path dir) {
+  public static CommandResult run(List<String> argv, Path dir) {
     long start = System.nanoTime();
     argv = List.copyOf(argv);
 

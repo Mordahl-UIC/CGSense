@@ -20,6 +20,7 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 
+import cgsense.exec.BuildContainer;
 import cgsense.io.JsonlWriter;
 import cgsense.model.CommitPair;
 import cgsense.model.RepoRecord;
@@ -39,6 +40,7 @@ public class CommitMiner {
 
   private final Path clonesDir;
   private final Path outputFile;
+  private static final int MAX_PAIRS_PER_REPO = 100;
 
   public CommitMiner(Path clonesDir, Path outputFile, boolean overwrite) {
     this.clonesDir = clonesDir;
@@ -77,10 +79,12 @@ public class CommitMiner {
     }
 
     try (
+        BuildContainer box = new BuildContainer(clonesDir, slug);
         Repository repo = new FileRepositoryBuilder().setGitDir(gitDir.toFile()).build();
         RevWalk walk = new RevWalk(repo);
         DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE);
-        JsonlWriter writer = JsonlWriter.open(this.outputFile, StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
+        JsonlWriter writer = JsonlWriter
+            .open(this.outputFile, StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
 
       ObjectId head = repo.resolve(Constants.HEAD);
       if (head == null) {
@@ -92,7 +96,7 @@ public class CommitMiner {
       walk.markStart(walk.parseCommit(head));
 
       System.out.printf("Walking commit history of %s\n", fullRepoName);
-      int numCommits = 0;
+      int accepted = 0;
       for (RevCommit child : walk) {
         if (child.getParentCount() == 0 || child.getParentCount() > 1) {
           continue;
@@ -101,13 +105,15 @@ public class CommitMiner {
 
         List<ChangedFile> files = changedFiles(diff, parent, child);
         CommitPair pair = select(new CommitPair(fullRepoName, parent.name(), child.name(), files));
-        if (pair != null) {
-          numCommits++;
+        if (pair != null && box.buildPair(parent.name(), child.name())) {
+          accepted++;
           writer.write(pair);
+          if (++accepted >= MAX_PAIRS_PER_REPO)
+            break;
         }
       }
 
-      System.out.printf("Finished verifying %s. Found %d commits\n", fullRepoName, numCommits);
+      System.out.printf("Finished verifying %s. Found %d commits\n", fullRepoName, accepted);
     } catch (IOException e) {
       System.out.println("Commit miner failed on " + fullRepoName + " with exception: " + e);
       return;
@@ -131,6 +137,8 @@ public class CommitMiner {
     if (javaLines == 0 || javaLines >= MAX_JAVA_LINES) {
       return null;
     }
+
+    // We can build the commit here?
 
     return pair;
   }
