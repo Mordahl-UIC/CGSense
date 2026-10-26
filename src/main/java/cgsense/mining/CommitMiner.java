@@ -138,8 +138,6 @@ public class CommitMiner {
       return null;
     }
 
-    // We can build the commit here?
-
     return pair;
   }
 

@@ -11,6 +11,7 @@ public class BuildContainer implements AutoCloseable {
   private final String name;
 
   private static final int[] JDKS = { 26, 25, 21, 17, 11, 8 };
+  private int JDK_IDX = 0;
 
   private static final String BUILD_SCRIPT = """
           set -e
@@ -36,43 +37,57 @@ public class BuildContainer implements AutoCloseable {
 
     int code = docker("run", "-d", "--name", name,
         "-v", clonesDir.toAbsolutePath() + ":/clones:ro",
-        IMAGE, "sleep", "infinity");
+        IMAGE, "sleep", "infinity").exitCode();
     if (code != 0) {
       throw new IOException("docker run failed");
     }
 
-    if (sh("git clone -q /clones/" + slug + " /work/repo") != 0) {
+    if (sh("git clone -q /clones/" + slug + " /work/repo").exitCode() != 0) {
+      close();
       throw new IOException("git clone inside container fialed for " + slug);
     }
   }
 
   static String script(String sha, int jdk) {
-    return BUILD_SCRIPT.replace("{sha}", sha).replace("{jdk}", Integer.toString(jdk));
+    return BUILD_SCRIPT
+        .replace("{sha}", sha)
+        .replace("{jdk}", Integer.toString(jdk));
   }
 
-  public boolean build(String sha, int jdk) throws IOException {
-    return sh(script(sha, jdk)) == 0;
-  }
+  public boolean build(String sha) throws IOException {
+    int jdk = JDKS[JDK_IDX];
+    CommandResult r = sh(script(sha, jdk));
 
-  public int buildAnyJdk(String sha) throws IOException {
-    for (int jdk : JDKS) {
-      if (build(sha, jdk)) {
-        return jdk;
-      }
+    String tag = String.format("  %s JDK %d", sha, jdk);
+    if (r.exitCode() == 0) {
+      System.out.println(tag + "  OK");
+      return true;
     }
 
-    return -1;
+    System.out.printf("%s  exit %d %n",
+        tag, r.exitCode());
+    System.out.println(r.output());
+    if (r.exitCode() == 127) {
+      throw new IOException("Image is missing a tool or JDK");
+    }
+    return false;
   }
 
   public boolean buildPair(String parentSha, String childSha) throws IOException {
-    int jdk = buildAnyJdk(parentSha);
-    if (jdk < 0) {
-      return false;
+    for (int tries = 0; tries < JDKS.length; tries++) {
+      if (build(parentSha)) {
+        return build(childSha);
+      }
+      JDK_IDX = (JDK_IDX + 1) % JDKS.length;
     }
-    return build(childSha, jdk);
+    return false;
   }
 
-  private int sh(String script) throws IOException {
+  public int jdk() {
+    return JDKS[JDK_IDX];
+  }
+
+  private CommandResult sh(String script) throws IOException {
     return docker("exec", name, "bash", "-c", script);
   }
 
@@ -81,12 +96,10 @@ public class BuildContainer implements AutoCloseable {
     docker("rm", "-f", name);
   }
 
-  public int docker(String... args) throws IOException {
+  public CommandResult docker(String... args) throws IOException {
     List<String> cmd = new ArrayList<>();
     cmd.add("docker");
     cmd.addAll(List.of(args));
-    CommandResult result = CommandRunner.run(cmd, null);
-    System.out.println(result.output());
-    return result.exitCode();
+    return CommandRunner.run(cmd, null);
   }
 }
