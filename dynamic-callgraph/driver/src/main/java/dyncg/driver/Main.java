@@ -1,18 +1,17 @@
 package dyncg.driver;
 
+import java.io.IOException;
+import java.io.PrintStream;
 import java.nio.file.Path;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.concurrent.Callable;
 
-import picocli.CommandLine;
-import picocli.CommandLine.Command;
-import picocli.CommandLine.Mixin;
-import picocli.CommandLine.Model.CommandSpec;
-import picocli.CommandLine.Option;
-import picocli.CommandLine.ParameterException;
-import picocli.CommandLine.Spec;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.help.HelpFormatter;
+import org.apache.commons.cli.help.TextHelpAppendable;
 
 /** Command line: {@code java -jar dyncg.jar {pair,version,rebuild} ...}. */
 /*The current project supports three commands:
@@ -20,144 +19,100 @@ import picocli.CommandLine.Spec;
  * - `version`: Generate a call graph for a single version.
  * - `rebuild`: Rebuild the call graphs.
  */
-@Command(name = "dyncg", mixinStandardHelpOptions = true, version = "dyncg " + Main.VERSION,
-        description = "Dynamic call graphs for the before and after versions of a commit pair.",
-        subcommands = {Main.Pair.class, Main.Version.class, Main.Rebuild.class})
-public final class Main implements Runnable {
+public final class Main {
     public static final String VERSION = "0.1.0";
 
-    @Spec
-    CommandSpec spec;
+    private static final Map<String, CliCommand> COMMANDS = new LinkedHashMap<>();
+    private static final Map<String, String> DESCRIPTIONS = new LinkedHashMap<>();
 
-    @Override
-    public void run() {
-        throw new ParameterException(spec.commandLine(), "missing command: pair, version or rebuild");
+    static {
+        register(new PairCommand(), "Call graphs for the before and after commit of a pair.");
+        register(new VersionCommand(), "Call graph for one already checked-out version.");
+        register(new RebuildCommand(),
+                "Rebuild callgraph.json from the raw outputs of earlier test runs, without running tests.");
+    }
+
+    private Main() {
+    }
+
+    private static void register(CliCommand command, String description) {
+        COMMANDS.put(command.name(), command);
+        DESCRIPTIONS.put(command.name(), description);
     }
 
     public static void main(String[] args) {
         System.exit(execute(args));
     }
 
-    /** Runs the command line and returns the exit code (0 = success). */
+    /** Runs the command line and returns the exit code (0 = success, 2 = usage error, 1 = failure). */
     public static int execute(String... args) {
-        CommandLine cli = new CommandLine(new Main());
-        cli.setExecutionExceptionHandler((error, command, parsed) -> {
-            if (error instanceof UsageException) {
-                command.getErr().println("dyncg: " + error.getMessage());
-                return 2;
+        if (args.length == 0) {
+            printUsage(System.err);
+            return 2;
+        }
+        if (isHelp(args[0])) {
+            printUsage(System.out);
+            return 0;
+        }
+        if (args[0].equals("--version") || args[0].equals("-V")) {
+            System.out.println("dyncg " + VERSION);
+            return 0;
+        }
+        CliCommand command = COMMANDS.get(args[0]);
+        if (command == null) {
+            System.err.println("dyncg: unknown command '" + args[0] + "'");
+            printUsage(System.err);
+            return 2;
+        }
+        String[] rest = Arrays.copyOfRange(args, 1, args.length);
+        if (Arrays.stream(rest).anyMatch(Main::isHelp)) {
+            return printHelp(command);
+        }
+        try {
+            // No abbreviations: "--max" must not silently mean "--max-events".
+            CommandLine cl = DefaultParser.builder().setAllowPartialMatching(false).get()
+                    .parse(command.options(), rest);
+            if (!cl.getArgList().isEmpty()) {
+                throw new UsageException("unexpected argument(s): " + String.join(" ", cl.getArgList()));
             }
-            error.printStackTrace(command.getErr());
+            return command.run(cl);
+        } catch (ParseException | UsageException error) {
+            System.err.println("dyncg " + command.name() + ": " + error.getMessage());
+            System.err.println("Run 'dyncg " + command.name() + " --help' for its options.");
+            return 2;
+        } catch (Exception error) {
+            error.printStackTrace();
             return 1;
-        });
-        return cli.execute(args);
+        }
     }
 
     static Path abs(Path path) {
         return path == null ? null : path.toAbsolutePath().normalize();
     }
 
-    @Command(name = "pair", mixinStandardHelpOptions = true,
-            description = "Call graphs for the before and after commit of a pair.")
-    static final class Pair implements Callable<Integer> {
-        @Option(names = "--repo", required = true, description = "git repository (bare or not)")
-        Path repo;
-
-        @Option(names = "--before", required = true, description = "before (parent) commit")
-        String before;
-
-        @Option(names = "--after", required = true, description = "after (fix) commit")
-        String after;
-
-        @Option(names = "--out", required = true, description = "output directory")
-        Path out;
-
-        @Option(names = "--before-java-home", description = "JDK for the before version (overrides --java-home)")
-        Path beforeJavaHome;
-
-        @Option(names = "--after-java-home", description = "JDK for the after version (overrides --java-home)")
-        Path afterJavaHome;
-
-        @Option(names = "--workdir", description = "where worktrees are created (default: <out>/worktrees)")
-        Path workdir;
-
-        @Option(names = "--keep-worktrees", description = "keep the checkouts for inspection")
-        boolean keepWorktrees;
-
-        @Mixin
-        RunOptions run;
-
-        @Override
-        public Integer call() throws Exception {
-            Path outDir = abs(out);
-            Map<String, Object> manifest = PairRunner.runPair(abs(repo), before, after, outDir, run.repeats,
-                    run.toOptions(run.includes), abs(beforeJavaHome), abs(afterJavaHome),
-                    workdir != null ? abs(workdir) : outDir.resolve("worktrees"), keepWorktrees, run.includes);
-            System.out.println(Json.pretty(manifest));
-            return 0;
-        }
+    private static boolean isHelp(String arg) {
+        return arg.equals("--help") || arg.equals("-h");
     }
 
-    @Command(name = "version", mixinStandardHelpOptions = true,
-            description = "Call graph for one already checked-out version.")
-    static final class Version implements Callable<Integer> {
-        @Option(names = "--project-dir", required = true)
-        Path projectDir;
-
-        @Option(names = "--out", required = true)
-        Path out;
-
-        @Option(names = "--label", defaultValue = "version")
-        String label;
-
-        @Option(names = "--commit", description = "commit id recorded in the output")
-        String commit;
-
-        @Mixin
-        RunOptions run;
-
-        @Override
-        public Integer call() throws Exception {
-            Path project = abs(projectDir);
-            ProjectSources sources = ProjectSources.scan(project);
-            List<String> includes = run.includes.isEmpty() ? sources.detectIncludePrefixes() : run.includes;
-            if (includes.isEmpty()) {
-                throw new UsageException("could not detect project packages; pass --include");
-            }
-            PairRunner.runVersion(label, commit, project, abs(out), run.repeats, run.toOptions(includes), sources);
-            return 0;
-        }
+    private static void printUsage(PrintStream out) {
+        out.println("usage: dyncg <command> [options]");
+        out.println("Dynamic call graphs for the before and after versions of a commit pair.");
+        out.println();
+        out.println("Commands:");
+        DESCRIPTIONS.forEach((name, description) -> out.printf("  %-9s %s%n", name, description));
+        out.println();
+        out.println("Run 'dyncg <command> --help' for its options; 'dyncg --version' prints the version.");
     }
 
-    @Command(name = "rebuild", mixinStandardHelpOptions = true,
-            description = "Rebuild callgraph.json from the raw outputs of earlier test runs, without running tests.")
-    static final class Rebuild implements Callable<Integer> {
-        @Option(names = "--runs-dir", required = true,
-                description = "directory holding <i>/dumps and <i>/surefire-reports, e.g. <out>/before/runs")
-        Path runsDir;
-
-        @Option(names = "--project-dir", required = true, description = "source checkout, used for node origins")
-        Path projectDir;
-
-        @Option(names = "--out", required = true)
-        Path out;
-
-        @Option(names = "--include", required = true, description = "include prefixes used for the runs")
-        List<String> includes = new ArrayList<>();
-
-        @Option(names = "--label", defaultValue = "version")
-        String label;
-
-        @Option(names = "--commit")
-        String commit;
-
-        @Override
-        public Integer call() throws Exception {
-            Path project = abs(projectDir);
-            VersionGraph graph = GraphBuilder.build(label, commit, project, includes,
-                    TestRunner.existingRuns(abs(runsDir)), ProjectSources.scan(project));
-            Path path = graph.write(abs(out));
-            System.out.println("[dyncg] " + label + ": wrote " + path + " " + Json.compact(graph.stats()));
+    private static int printHelp(CliCommand command) {
+        try {
+            HelpFormatter.builder().setShowSince(false).setHelpAppendable(new TextHelpAppendable(System.out)).get()
+                    .printHelp("dyncg " + command.name(), DESCRIPTIONS.get(command.name()), command.options(),
+                            "", true);
             return 0;
+        } catch (IOException error) {
+            error.printStackTrace();
+            return 1;
         }
     }
 }

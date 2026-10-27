@@ -3,6 +3,7 @@ package dyncg.driver;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,6 +12,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.ParseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -175,5 +179,49 @@ class UnitTest {
         Files.writeString(integration.resolve("TEST-a.Integration.xml"), "<testsuite/>");
         assertEquals(List.of(unit, integration).stream().sorted().collect(Collectors.toList()),
                 SurefireReports.reportDirs(dir, BuildTool.GRADLE));
+    }
+
+    private static CommandLine parse(CliCommand command, String... args) throws ParseException {
+        return DefaultParser.builder().setAllowPartialMatching(false).get().parse(command.options(), args);
+    }
+
+    @Test
+    void parsesRepeatableOptionsAndDefaults() throws ParseException {
+        CommandLine cl = parse(new PairCommand(), "--repo", "r", "--before", "a", "--after", "b", "--out", "o",
+                "--include", "org/x/", "--include=org/y/", "--maven-arg=-Dfoo=bar", "--maven-arg", "-o",
+                "--record-events", "--repeats", "5");
+        RunOptions run = RunOptions.from(cl);
+        assertEquals(List.of("org/x/", "org/y/"), run.includes);
+        assertEquals(List.of("-Dfoo=bar", "-o"), run.mavenArgs);
+        assertEquals(5, run.repeats);
+        assertTrue(run.recordEvents);
+        // defaults
+        assertEquals(List.of(), run.excludes);
+        assertEquals(60, run.flush);
+        assertEquals(5000000L, run.maxEvents);
+        assertEquals("auto", run.buildTool);
+        assertEquals("mvn", run.mvn);
+        assertNull(run.timeout);
+        assertNull(run.javaHome);
+    }
+
+    @Test
+    void rejectsBadNumbers() throws ParseException {
+        CommandLine cl = parse(new VersionCommand(), "--project-dir", "p", "--out", "o", "--repeats", "two");
+        UsageException error = assertThrows(UsageException.class, () -> RunOptions.from(cl));
+        assertEquals("--repeats: not a number: 'two'", error.getMessage());
+    }
+
+    @Test
+    void commandLineExitCodes() {
+        assertEquals(0, Main.execute("--help"));
+        assertEquals(0, Main.execute("--version"));
+        assertEquals(0, Main.execute("pair", "--help"));
+        assertEquals(2, Main.execute());
+        assertEquals(2, Main.execute("nope"));
+        assertEquals(2, Main.execute("version", "--out", "o")); // --project-dir missing
+        assertEquals(2, Main.execute("version", "--project-dir", "p", "--out", "o", "--no-such-option"));
+        assertEquals(2, Main.execute("version", "--project-dir", "p", "--out", "o", "--max", "3")); // no abbreviations
+        assertEquals(2, Main.execute("version", "--project-dir", "p", "--out", "o", "extra"));
     }
 }

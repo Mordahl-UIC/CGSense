@@ -1,4 +1,20 @@
 #!/bin/sh
 # Runs the dyncg driver: bin/dyncg {pair,version,rebuild} ...
+# The driver needs Java 21 or newer. If `java` on the PATH is older, set DYNCG_JAVA to a java
+# executable or JAVA_HOME to a JDK 21+ (DYNCG_JAVA wins).
 here=$(cd "$(dirname "$0")/.." && pwd)
-exec java -jar "$here/driver/target/dyncg.jar" "$@"
+java=${DYNCG_JAVA:-${JAVA_HOME:+$JAVA_HOME/bin/java}}
+java=${java:-java}
+# Major version from e.g. "1.8.0_442" (8), "21.0.13" (21) or "28-ea" (28); below 21 cannot load the driver.
+version=$("$java" -version 2>&1 | sed -n 's/.*version "\([^"]*\)".*/\1/p' | head -n 1)
+case "$version" in
+    1.*) major=${version#1.} ;;
+    *) major=$version ;;
+esac
+major=$(echo "$major" | sed 's/[^0-9].*//')
+if [ -n "$major" ] && [ "$major" -lt 21 ]; then
+    echo "dyncg: needs Java 21 or newer, but $java is Java $major." >&2
+    echo "Set JAVA_HOME (or DYNCG_JAVA) to a JDK 21+, e.g. JAVA_HOME=/path/to/jdk-21 bin/dyncg ..." >&2
+    exit 2
+fi
+exec "$java" -jar "$here/driver/target/dyncg.jar" "$@"

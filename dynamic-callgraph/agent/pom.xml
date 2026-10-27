@@ -39,6 +39,12 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>3.13.0</version>
+        <configuration>
+          <compilerArgs>
+            <!-- Java 8 is intentional (see above); silence "source value 8 is obsolete" on newer JDKs. -->
+            <arg>-Xlint:-options</arg>
+          </compilerArgs>
+        </configuration>
       </plugin>
       <plugin>
         <groupId>org.apache.maven.plugins</groupId>
