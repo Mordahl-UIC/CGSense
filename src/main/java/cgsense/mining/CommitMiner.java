@@ -1,6 +1,7 @@
 package cgsense.mining;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -12,6 +13,7 @@ import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
 import org.eclipse.jgit.diff.DiffFormatter;
 import org.eclipse.jgit.diff.Edit;
+import org.eclipse.jgit.lib.AbbreviatedObjectId;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
@@ -105,7 +107,8 @@ public class CommitMiner {
 
         List<ChangedFile> files = changedFiles(diff, parent, child);
         CommitPair pair = select(new CommitPair(fullRepoName, parent.name(), child.name(), files));
-        if (pair != null && box.buildPair(parent.name(), child.name())) {
+        if (pair != null && !onlyCommentsOrFormatting(repo, diff, parent, child)
+            && box.buildPair(parent.name(), child.name())) {
           accepted++;
           writer.write(pair);
           if (++accepted >= MAX_PAIRS_PER_REPO)
@@ -138,9 +141,32 @@ public class CommitMiner {
       return null;
     }
 
-    // We can build the commit here?
-
     return pair;
+  }
+
+  private boolean onlyCommentsOrFormatting(Repository repo, DiffFormatter diff,
+      RevCommit parent, RevCommit child) throws IOException {
+    for (DiffEntry e : diff.scan(parent, child)) {
+      String path = e.getNewPath();
+      if (!isMainJava(path))
+        continue;
+
+      String before = read(repo, e.getOldId());
+      String after = read(repo, e.getNewId());
+
+      if (!JavaCode.sameCode(before, after)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  private static String read(Repository repo, AbbreviatedObjectId id) throws IOException {
+    ObjectId oid = id.toObjectId();
+    if (oid.equals(ObjectId.zeroId()))
+      return "";
+    return new String(repo.open(oid, Constants.OBJ_BLOB).getBytes(), StandardCharsets.UTF_8);
   }
 
   private List<ChangedFile> changedFiles(DiffFormatter diff, RevCommit parent, RevCommit child) {
