@@ -1,0 +1,65 @@
+// Added by dyncg with --init-script. Records the class, method and outcome of every test.
+// Gradle's XML reports name parameterized cases only by their display name ("[1] ..."), which
+// loses the method; the test descriptors still have it, as the parent of the case.
+// Each line of $DYNCG_GRADLE_TEST_LOG is one JSON object.
+import groovy.json.JsonOutput
+
+def log = new File(System.getenv('DYNCG_GRADLE_TEST_LOG'))
+def lock = new Object()
+
+// Gradle replaces exceptions whose class the build JVM does not have by placeholders that keep the name.
+static String exceptionClass(Throwable error) {
+    if (error == null) {
+        return null
+    }
+    try {
+        return error.exceptionClassName
+    } catch (MissingPropertyException ignored) {
+        return error.getClass().name
+    }
+}
+
+gradle.allprojects { project ->
+    project.tasks.withType(Test) { task -> // the closure form works on all Gradle versions
+        task.addTestListener(new TestListener() {
+            void beforeSuite(TestDescriptor suite) {}
+
+            void afterSuite(TestDescriptor suite, TestResult result) {}
+
+            void beforeTest(TestDescriptor test) {}
+
+            void afterTest(TestDescriptor test, TestResult result) {
+                // The method is the descriptor directly below the class (the case itself for plain tests).
+                def method = test
+                while (method.parent != null && method.parent.className == test.className
+                        && method.parent.name != test.className) {
+                    method = method.parent
+                }
+                String status
+                Map failure = null
+                switch (result.resultType) {
+                    case TestResult.ResultType.SUCCESS:
+                        status = 'passed'
+                        break
+                    case TestResult.ResultType.SKIPPED:
+                        status = 'skipped'
+                        break
+                    default:
+                        Throwable error = result.exception
+                        status = error instanceof AssertionError ? 'failed' : 'error'
+                        def trace = new StringWriter()
+                        if (error != null) {
+                            error.printStackTrace(new PrintWriter(trace))
+                        }
+                        failure = [kind: status, type: exceptionClass(error), message: error?.message,
+                                   trace: trace.toString().readLines().take(25)]
+                }
+                def line = JsonOutput.toJson([task: task.path, class: test.className, method: method.name,
+                                              name: test.name, status: status, failure: failure])
+                synchronized (lock) {
+                    log << line + '\n'
+                }
+            }
+        })
+    }
+}

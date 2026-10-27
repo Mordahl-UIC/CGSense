@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs the dyncg driver: bin/dyncg {pair,version,rebuild} ...
+here=$(cd "$(dirname "$0")/.." && pwd)
+exec java -jar "$here/driver/target/dyncg.jar" "$@"
