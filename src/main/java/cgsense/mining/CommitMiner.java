@@ -108,9 +108,11 @@ public class CommitMiner {
         }
         RevCommit parent = child.getParent(0);
 
-        Set<String> rootFiles = getRootFiles(repo, child);
-        boolean hasBuildSystem = rootFiles.stream().anyMatch(this::isBuildFile);
-        if (!hasBuildSystem) {
+        Set<String> childRootFiles = getRootFiles(repo, child);
+        Set<String> parentRootFiles = getRootFiles(repo, parent);
+        boolean childHasBuildSystem = childRootFiles.stream().anyMatch(this::isBuildFile);
+        boolean parentHasBuildSystem = parentRootFiles.stream().anyMatch(this::isBuildFile);
+        if (!childHasBuildSystem || !parentHasBuildSystem) {
           continue;
         }
 
