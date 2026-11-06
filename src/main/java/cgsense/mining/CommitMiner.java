@@ -6,7 +6,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -20,6 +22,7 @@ import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 import cgsense.exec.BuildContainer;
@@ -105,11 +108,16 @@ public class CommitMiner {
         }
         RevCommit parent = child.getParent(0);
 
+        Set<String> rootFiles = getRootFiles(repo, child);
+        boolean hasBuildSystem = rootFiles.stream().anyMatch(this::isBuildFile);
+        if (!hasBuildSystem) {
+          continue;
+        }
+
         List<ChangedFile> files = changedFiles(diff, parent, child);
         CommitPair pair = select(new CommitPair(fullRepoName, parent.name(), child.name(), files));
         if (pair != null && !onlyCommentsOrFormatting(repo, diff, parent, child)
             && box.buildPair(parent.name(), child.name())) {
-          accepted++;
           writer.write(pair);
           if (++accepted >= MAX_PAIRS_PER_REPO)
             break;
@@ -160,6 +168,20 @@ public class CommitMiner {
     }
 
     return true;
+  }
+
+  private Set<String> getRootFiles(Repository repo, RevCommit commit) throws IOException {
+    TreeWalk treeWalk = new TreeWalk(repo);
+    treeWalk.addTree(commit.getTree());
+
+    Set<String> out = new HashSet<>();
+    while (treeWalk.next()) {
+      out.add(treeWalk.getPathString());
+    }
+
+    treeWalk.close();
+
+    return out;
   }
 
   private static String read(Repository repo, AbbreviatedObjectId id) throws IOException {
