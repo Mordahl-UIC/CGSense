@@ -1,7 +1,6 @@
 package cgsense.exec;
 
 import java.io.IOException;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -31,20 +30,19 @@ public class BuildContainer implements AutoCloseable {
 
       """;
 
-  public BuildContainer(Path clonesDir, String slug) throws IOException {
+  public BuildContainer(String remoteUrl, String slug) throws IOException {
     this.name = "cgsense-" + slug;
     docker("rm", "-f", name);
 
-    int code = docker("run", "-d", "--name", name,
-        "-v", clonesDir.toAbsolutePath() + ":/clones:ro",
-        IMAGE, "sleep", "infinity").exitCode();
-    if (code != 0) {
-      throw new IOException("docker run failed");
+    CommandResult r = docker("run", "-d", "--name", name, IMAGE, "sleep", "infinity");
+    if (r.exitCode() != 0) {
+      throw new IOException(String.format("docker run failed: %s", r.output()));
     }
 
-    if (sh("git clone -q /clones/" + slug + " /work/repo").exitCode() != 0) {
+    CommandResult cloneRes = sh("git clone -q " + remoteUrl + " /work/repo");
+    if (cloneRes.exitCode() != 0) {
       close();
-      throw new IOException("git clone inside container fialed for " + slug);
+      throw new IOException(String.format("git clone inside container for %s: %s", slug, cloneRes.output()));
     }
   }
 
