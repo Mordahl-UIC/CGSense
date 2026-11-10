@@ -84,7 +84,7 @@ public class CommitMiner {
     }
 
     try (
-        BuildContainer box = new BuildContainer(clonesDir, slug);
+        BuildContainer box = new BuildContainer(cloneUrl, slug);
         Repository repo = new FileRepositoryBuilder().setGitDir(gitDir.toFile()).build();
         RevWalk walk = new RevWalk(repo);
         DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE);
