@@ -9,6 +9,9 @@ import org.apache.commons.cli.DefaultParser;
 import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
+import cgsense.tester.driver.PairCommand;
+import cgsense.tester.driver.RebuildCommand;
+import cgsense.tester.driver.VersionCommand;
 
 public class Main {
 
@@ -18,6 +21,9 @@ public class Main {
   static {
     reigster(new DiscoverCommand());
     reigster(new CommitMinerCommand());
+    reigster(new PairCommand());
+    reigster(new VersionCommand());
+    reigster(new RebuildCommand());
   }
 
   private static void reigster(CliCommand c) {
