@@ -20,7 +20,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import cgsense.tester.driver.SurefireReports.TestInvocation;
 
 /** Turning agent dumps and test reports into one call graph per version. */
-final class GraphBuilder {
+public final class GraphBuilder {
     static final String ROOT = "<root>";
     private static final Map<Integer, String> KIND_NAMES = Map.of(0, "none", 1, "test", 2, "fixture");
     private static final int ACC_STATIC = 0x0008;
@@ -214,7 +214,7 @@ final class GraphBuilder {
         return "inconsistent";
     }
 
-    static VersionGraph build(String label, String commit, Path projectDir, List<String> includes,
+    public static VersionGraph build(String label, String commit, Path projectDir, List<String> includes,
             List<RunResult> runs, ProjectSources sources) throws IOException {
         List<RunGraph> runGraphs = new ArrayList<>();
         List<Map<String, List<TestInvocation>>> runTests = new ArrayList<>();

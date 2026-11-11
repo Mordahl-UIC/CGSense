@@ -19,7 +19,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /** Running a project's tests under the agent. */
-final class TestRunner {
+public final class TestRunner {
     /** Plugins that are irrelevant to running tests and often break on historical commits. */
     static final List<String> SKIP_PROPERTIES = List.of(
             "-Djacoco.skip=true", "-Dcheckstyle.skip=true", "-Denforcer.skip=true",
@@ -197,7 +197,7 @@ final class TestRunner {
     }
 
     /** Runs saved earlier under runsDir/&lt;index&gt;/{dumps,surefire-reports}, for {@code rebuild}. */
-    static List<RunResult> existingRuns(Path runsDir) throws IOException {
+    public static List<RunResult> existingRuns(Path runsDir) throws IOException {
         List<Path> dirs;
         try (Stream<Path> stream = Files.list(runsDir)) {
             dirs = stream.filter(Files::isDirectory)

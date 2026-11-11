@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import cgsense.app.cmd.CliCommand;
+import cgsense.app.cmd.PairCommand;
+import cgsense.app.cmd.VersionCommand;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;

@@ -6,7 +6,7 @@ import java.nio.file.Paths;
 import java.util.List;
 
 /** How to run a project's tests under the agent. Immutable. */
-final class TestRunOptions {
+public final class TestRunOptions {
     final Path agentJar;
     final List<String> includes;
     final List<String> excludes;

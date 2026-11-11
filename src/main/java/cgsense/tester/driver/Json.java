@@ -8,17 +8,17 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /** The shared JSON mapper. Maps are written in insertion order and nulls are kept. */
-final class Json {
+public final class Json {
     static final ObjectMapper MAPPER = new ObjectMapper();
 
     private Json() {
     }
 
-    static String compact(Object value) throws JsonProcessingException {
+    public static String compact(Object value) throws JsonProcessingException {
         return MAPPER.writeValueAsString(value);
     }
 
-    static String pretty(Object value) throws JsonProcessingException {
+    public static String pretty(Object value) throws JsonProcessingException {
         return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(value);
     }
 

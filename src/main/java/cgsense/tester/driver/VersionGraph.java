@@ -13,7 +13,7 @@ import java.util.Map;
 import com.fasterxml.jackson.core.JsonGenerator;
 
 /** The call graph of one version, written as callgraph.json (schema version 1) and summary.json. */
-final class VersionGraph {
+public final class VersionGraph {
     static final List<String> EDGE_COLUMNS =
             List.of("context", "caller", "callee", "runs_seen", "mean_count", "counts_per_run");
     static final List<String> AGGREGATE_EDGE_COLUMNS =
@@ -73,11 +73,11 @@ final class VersionGraph {
     }
 
     @SuppressWarnings("unchecked")
-    Map<String, Object> stats() {
+    public Map<String, Object> stats() {
         return (Map<String, Object>) header.get("stats");
     }
 
-    Path write(Path outDir) throws IOException {
+    public Path write(Path outDir) throws IOException {
         Files.createDirectories(outDir);
         Map<String, Object> callEvents = null;
         Files.deleteIfExists(outDir.resolve(EventExport.FILE));

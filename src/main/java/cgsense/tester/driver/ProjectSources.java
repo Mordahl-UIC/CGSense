@@ -18,7 +18,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /** Static facts about a checked-out project: its packages and which classes are test code. */
-final class ProjectSources {
+public final class ProjectSources {
     private static final Pattern PACKAGE = Pattern.compile("^\\s*package\\s+([\\w.]+)\\s*;", Pattern.MULTILINE);
     private static final int HEADER_CHARS = 20000;
     private static final Set<String> SKIPPED_DIRS = Set.of("target", "build", ".git", "node_modules", ".idea", ".mvn");
@@ -45,7 +45,7 @@ final class ProjectSources {
         return false;
     }
 
-    static ProjectSources scan(Path projectDir) throws IOException {
+    public static ProjectSources scan(Path projectDir) throws IOException {
         ProjectSources sources = new ProjectSources();
         Files.walkFileTree(projectDir, new SimpleFileVisitor<Path>() {
             @Override
@@ -97,7 +97,7 @@ final class ProjectSources {
     }
 
     /** Package prefixes (internal form, ending in '/') that cover the project's own classes. */
-    List<String> detectIncludePrefixes() {
+    public List<String> detectIncludePrefixes() {
         TreeSet<String> packages = new TreeSet<>();
         TreeSet<String> defaultPackage = new TreeSet<>();
         for (String className : origins.keySet()) {

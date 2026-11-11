@@ -8,6 +8,9 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import cgsense.app.cmd.CliCommand;
+import cgsense.app.cmd.PairCommand;
+import cgsense.app.cmd.RebuildCommand;
+import cgsense.app.cmd.VersionCommand;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -88,7 +91,7 @@ public final class Main {
         }
     }
 
-    static Path abs(Path path) {
+    public static Path abs(Path path) {
         return path == null ? null : path.toAbsolutePath().normalize();
     }
 

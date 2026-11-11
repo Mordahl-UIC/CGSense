@@ -1,9 +1,9 @@
-package cgsense.tester.driver;
+package cgsense.app.cmd;
 
 import java.nio.file.Path;
 import java.util.Map;
 
-import cgsense.app.cmd.CliCommand;
+import cgsense.tester.driver.*;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;

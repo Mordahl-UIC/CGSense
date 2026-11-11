@@ -14,7 +14,7 @@ import java.util.TreeSet;
 import java.util.stream.Stream;
 
 /** Generating call graphs for both versions of a commit pair. */
-final class PairRunner {
+public final class PairRunner {
   private static final Set<String> BAD = Set.of("failed", "error");
   private static final List<String> LABELS = List.of("before", "after");
 
@@ -66,7 +66,7 @@ final class PairRunner {
    * Runs the tests {@code repeats} times under the agent and writes
    * &lt;outDir&gt;/callgraph.json.
    */
-  static VersionGraph runVersion(String label, String commit, Path projectDir, Path outDir, int repeats,
+  public static VersionGraph runVersion(String label, String commit, Path projectDir, Path outDir, int repeats,
       TestRunOptions options, ProjectSources sources) throws IOException, InterruptedException {
     BuildTool buildTool = options.buildTool.resolve(projectDir);
     options = options.withBuildTool(buildTool);
@@ -165,7 +165,7 @@ final class PairRunner {
     return statuses;
   }
 
-  static Map<String, Object> runPair(Path repo, String before, String after, Path outDir, int repeats,
+  public static Map<String, Object> runPair(Path repo, String before, String after, Path outDir, int repeats,
       TestRunOptions options, Path beforeJavaHome, Path afterJavaHome, Path workdir, boolean keepWorktrees,
       List<String> includes) throws IOException, InterruptedException {
     Files.createDirectories(outDir);

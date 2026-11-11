@@ -1,10 +1,10 @@
 package cgsense.tester.driver;
 
 /** An error caused by the user's input; reported as a message without a stack trace. */
-final class UsageException extends RuntimeException {
+public final class UsageException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
-    UsageException(String message) {
+    public UsageException(String message) {
         super(message);
     }
 }

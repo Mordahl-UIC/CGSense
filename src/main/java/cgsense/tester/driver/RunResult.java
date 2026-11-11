@@ -4,7 +4,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 /** Raw outputs of one test run: agent dumps and copied test reports. */
-final class RunResult {
+public final class RunResult {
     final int index;
     final Path runDir;
     /** Build command line; null for runs loaded by {@code rebuild}. */
