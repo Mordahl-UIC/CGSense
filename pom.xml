@@ -18,6 +18,8 @@
     <github.version>1.330</github.version>
     <commons.cli.version>1.11.0</commons.cli.version>
     <jgit.version>7.8.0.202609011348-r</jgit.version>
+    <jackson.version>2.20.1</jackson.version>
+    <asm.version>9.10.1</asm.version>
   </properties>
 
   <dependencies>
@@ -63,6 +65,24 @@
       <artifactId>org.eclipse.jgit</artifactId>
       <version>${jgit.version}</version>
     </dependency>
+
+    <dependency>
+      <groupId>com.fasterxml.jackson.core</groupId>
+      <artifactId>jackson-databind</artifactId>
+      <version>${jackson.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm</artifactId>
+      <version>${asm.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.ow2.asm</groupId>
+      <artifactId>asm-commons</artifactId>
+      <version>${asm.version}</version>
+    </dependency>
   </dependencies>
 
     <build>
@@ -70,11 +90,135 @@
         <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
-            <version>3.13.0</version> 
-            <configuration>
-                <source>8</source>
-                <target>8</target>
-            </configuration>
+            <version>3.13.0</version>
+            <executions>
+              <execution>
+                <id>default-compile</id>
+                <configuration>
+                  <excludes>
+                    <exclude>cgsense/tester/agent/**</exclude>
+                  </excludes>
+                </configuration>
+              </execution>
+              <!-- The agent runs inside the tested project's JVM, which may be as old as Java 8. -->
+              <execution>
+                <id>compile-agent</id>
+                <phase>compile</phase>
+                <goals>
+                  <goal>compile</goal>
+                </goals>
+                <configuration>
+                  <release>8</release>
+                  <includes>
+                    <include>cgsense/tester/agent/**</include>
+                  </includes>
+                  <compilerArgs>
+                    <!-- Java 8 is intentional; silence "source value 8 is obsolete" on newer JDKs. -->
+                    <arg>-Xlint:-options</arg>
+                  </compilerArgs>
+                </configuration>
+              </execution>
+            </executions>
+        </plugin>
+
+        <!-- The end-to-end tests need target/cgsense-agent.jar, which only exists after package,
+             so they run under failsafe (mvn verify) instead of surefire. -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-surefire-plugin</artifactId>
+          <version>3.2.5</version>
+          <configuration>
+            <excludes>
+              <exclude>**/*EndToEndTest.java</exclude>
+            </excludes>
+          </configuration>
+        </plugin>
+
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-failsafe-plugin</artifactId>
+          <version>3.2.5</version>
+          <configuration>
+            <includes>
+              <include>**/*EndToEndTest.java</include>
+            </includes>
+            <systemPropertyVariables>
+              <cgsense.agent.jar>${project.build.directory}/cgsense-agent.jar</cgsense.agent.jar>
+            </systemPropertyVariables>
+          </configuration>
+          <executions>
+            <execution>
+              <goals>
+                <goal>integration-test</goal>
+                <goal>verify</goal>
+              </goals>
+            </execution>
+          </executions>
+        </plugin>
+
+
+        <!-- Call-graph agent jar: only cgsense/tester/agent plus a relocated ASM, so it cannot clash with
+             the libraries of Maven, Gradle or the tested project. -->
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-shade-plugin</artifactId>
+          <version>3.6.0</version>
+          <executions>
+            <execution>
+              <id>agent-jar</id>
+              <phase>package</phase>
+              <goals>
+                <goal>shade</goal>
+              </goals>
+              <configuration>
+                <!-- Boot-Class-Path below refers to this exact file name. -->
+                <outputFile>${project.build.directory}/cgsense-agent.jar</outputFile>
+                <createDependencyReducedPom>false</createDependencyReducedPom>
+                <artifactSet>
+                  <includes>
+                    <include>org.ow2.asm:asm</include>
+                    <include>org.ow2.asm:asm-commons</include>
+                  </includes>
+                </artifactSet>
+                <relocations>
+                  <relocation>
+                    <pattern>org.objectweb.asm</pattern>
+                    <shadedPattern>cgsense.tester.agent.shaded.asm</shadedPattern>
+                  </relocation>
+                </relocations>
+                <filters>
+                  <filter>
+                    <artifact>${project.groupId}:${project.artifactId}</artifact>
+                    <includes>
+                      <include>cgsense/tester/agent/**</include>
+                    </includes>
+                  </filter>
+                  <filter>
+                    <artifact>*:*</artifact>
+                    <excludes>
+                      <exclude>module-info.class</exclude>
+                      <exclude>META-INF/versions/**/module-info.class</exclude>
+                      <exclude>META-INF/*.SF</exclude>
+                      <exclude>META-INF/*.DSA</exclude>
+                      <exclude>META-INF/*.RSA</exclude>
+                    </excludes>
+                  </filter>
+                </filters>
+                <transformers>
+                  <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                    <manifestEntries>
+                      <Premain-Class>cgsense.tester.agent.Agent</Premain-Class>
+                      <!-- Load the agent (and Recorder) from the bootstrap loader so that
+                           instrumented classes in any class loader can call Recorder. -->
+                      <Boot-Class-Path>cgsense-agent.jar</Boot-Class-Path>
+                      <Can-Redefine-Classes>false</Can-Redefine-Classes>
+                      <Can-Retransform-Classes>false</Can-Retransform-Classes>
+                    </manifestEntries>
+                  </transformer>
+                </transformers>
+              </configuration>
+            </execution>
+          </executions>
         </plugin>
 
         <plugin>
