@@ -21,6 +21,7 @@ import cgsense.tester.driver.SurefireReports.TestInvocation;
 
 /** Turning agent dumps and test reports into one call graph per version. */
 public final class GraphBuilder {
+    public static final String VERSION = "0.1.0";
     static final String ROOT = "<root>";
     private static final Map<Integer, String> KIND_NAMES = Map.of(0, "none", 1, "test", 2, "fixture");
     private static final int ACC_STATIC = 0x0008;
@@ -406,7 +407,7 @@ public final class GraphBuilder {
 
         Map<String, Object> header = new LinkedHashMap<>();
         header.put("schema_version", 1);
-        header.put("tool", "dyncg " + Main.VERSION);
+        header.put("tool", "dyncg " + GraphBuilder.VERSION);
         header.put("version_label", label);
         header.put("commit", commit);
         header.put("project_dir", projectDir.toString());

@@ -33,12 +33,12 @@ public final class PairCommand implements CliCommand {
   @Override
   public int run(CommandLine cl) throws Exception {
     RunOptions run = RunOptions.from(cl);
-    Path outDir = Main.abs(RunOptions.path(cl, "out"));
-    Path workdir = cl.hasOption("workdir") ? Main.abs(RunOptions.path(cl, "workdir")) : outDir.resolve("worktrees");
-    Map<String, Object> manifest = PairRunner.runPair(Main.abs(RunOptions.path(cl, "repo")),
+    Path outDir = FileUtil.abs(RunOptions.path(cl, "out"));
+    Path workdir = cl.hasOption("workdir") ? FileUtil.abs(RunOptions.path(cl, "workdir")) : outDir.resolve("worktrees");
+    Map<String, Object> manifest = PairRunner.runPair(FileUtil.abs(RunOptions.path(cl, "repo")),
         cl.getOptionValue("before"), cl.getOptionValue("after"), outDir, run.repeats,
-        run.toOptions(run.includes), Main.abs(RunOptions.path(cl, "before-java-home")),
-        Main.abs(RunOptions.path(cl, "after-java-home")), workdir, cl.hasOption("keep-worktrees"),
+        run.toOptions(run.includes), FileUtil.abs(RunOptions.path(cl, "before-java-home")),
+        FileUtil.abs(RunOptions.path(cl, "after-java-home")), workdir, cl.hasOption("keep-worktrees"),
         run.includes);
     System.out.println(Json.pretty(manifest));
     return 0;

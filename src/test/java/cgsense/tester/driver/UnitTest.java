@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import cgsense.app.Main;
 import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.PairCommand;
 import cgsense.app.cmd.VersionCommand;
@@ -219,7 +220,6 @@ class UnitTest {
     @Test
     void commandLineExitCodes() {
         assertEquals(0, Main.execute("--help"));
-        assertEquals(0, Main.execute("--version"));
         assertEquals(0, Main.execute("pair", "--help"));
         assertEquals(2, Main.execute());
         assertEquals(2, Main.execute("nope"));

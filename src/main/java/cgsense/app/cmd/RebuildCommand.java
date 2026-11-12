@@ -4,7 +4,7 @@ import java.nio.file.Path;
 
 import cgsense.tester.driver.GraphBuilder;
 import cgsense.tester.driver.Json;
-import cgsense.tester.driver.Main;
+import cgsense.tester.driver.FileUtil;
 import cgsense.tester.driver.ProjectSources;
 import cgsense.tester.driver.RunOptions;
 import cgsense.tester.driver.TestRunner;
@@ -38,11 +38,11 @@ public final class RebuildCommand implements CliCommand {
   @Override
   public int run(CommandLine cl) throws Exception {
     String label = cl.getOptionValue("label", "version");
-    Path project = Main.abs(RunOptions.path(cl, "project-dir"));
+    Path project = FileUtil.abs(RunOptions.path(cl, "project-dir"));
     VersionGraph graph = GraphBuilder.build(label, cl.getOptionValue("commit"), project,
-        RunOptions.values(cl, "include"), TestRunner.existingRuns(Main.abs(RunOptions.path(cl, "runs-dir"))),
+        RunOptions.values(cl, "include"), TestRunner.existingRuns(FileUtil.abs(RunOptions.path(cl, "runs-dir"))),
         ProjectSources.scan(project));
-    Path path = graph.write(Main.abs(RunOptions.path(cl, "out")));
+    Path path = graph.write(FileUtil.abs(RunOptions.path(cl, "out")));
     System.out.println("[dyncg] " + label + ": wrote " + path + " " + Json.compact(graph.stats()));
     return 0;
   }

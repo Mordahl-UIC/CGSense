@@ -73,7 +73,7 @@ public final class TestRunOptions {
             return Paths.get(override).toAbsolutePath().normalize();
         }
         try {
-            Path location = Paths.get(Main.class.getProtectionDomain().getCodeSource().getLocation().toURI());
+            Path location = Paths.get(TestRunOptions.class.getProtectionDomain().getCodeSource().getLocation().toURI());
             return location.getParent().resolve("cgsense-agent.jar");
         } catch (URISyntaxException | RuntimeException e) {
             return Paths.get("target/cgsense-agent.jar").toAbsolutePath();

@@ -83,7 +83,7 @@ public final class RunOptions {
   }
 
   public TestRunOptions toOptions(List<String> includeList) {
-    Path agent = agentJar != null ? Main.abs(agentJar) : TestRunOptions.defaultAgentJar();
+    Path agent = agentJar != null ? FileUtil.abs(agentJar) : TestRunOptions.defaultAgentJar();
     if (!Files.isRegularFile(agent)) {
       throw new UsageException("agent jar not found: " + agent + " (build it with: mvn -B package)");
     }
@@ -93,7 +93,7 @@ public final class RunOptions {
     if (maxEvents < 1 || maxEvents > Integer.MAX_VALUE) {
       throw new UsageException("--max-events must be between 1 and " + Integer.MAX_VALUE);
     }
-    return new TestRunOptions(agent, includeList, excludes, Main.abs(javaHome), tests, testTimeout, timeout,
+    return new TestRunOptions(agent, includeList, excludes, FileUtil.abs(javaHome), tests, testTimeout, timeout,
         offline, mavenArgs, gradleArgs, flush, recordEvents ? maxEvents : 0, mvn, gradle, BuildTool.parse(buildTool));
   }
 

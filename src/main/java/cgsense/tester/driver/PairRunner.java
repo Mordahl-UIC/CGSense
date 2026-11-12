@@ -221,7 +221,7 @@ public final class PairRunner {
     Map<String, Object> comparison = compareTests(graphs.get("before"), graphs.get("after"));
     Json.writePretty(outDir.resolve("tests.json"), comparison);
     Map<String, Object> manifest = new LinkedHashMap<>();
-    manifest.put("tool", "dyncg " + Main.VERSION);
+    manifest.put("tool", "dyncg " + GraphBuilder.VERSION);
     manifest.put("repo", repo.toString());
     for (String label : LABELS) {
       Map<String, Object> version = new LinkedHashMap<>();
