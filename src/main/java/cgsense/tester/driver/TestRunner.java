@@ -146,7 +146,7 @@ final class TestRunner {
       testLog = runDir.resolve(GRADLE_TEST_LOG);
       Files.deleteIfExists(testLog);
       initScript = runDir.resolve(GRADLE_LISTENER);
-      try (InputStream in = TestRunner.class.getResourceAsStream("cgsense/tester/test-listener.gradle")) {
+      try (InputStream in = TestRunner.class.getResourceAsStream("/cgsense/tester/test-listener.gradle")) {
         Files.copy(in, initScript, StandardCopyOption.REPLACE_EXISTING);
       }
     }

@@ -35,7 +35,7 @@ import org.objectweb.asm.commons.AdviceAdapter;
  * each throw.
  */
 final class MethodInstrumenter extends AdviceAdapter {
-  private static final String RECORDER = "cgsense/tester/Recorder"; // class whose methods we call
+  private static final String RECORDER = "cgsense/tester/agent/Recorder"; // class whose methods we call
 
   private final String owner; // the class we're instrumenting, e.g. "demo/CalculatorTest"
   private final TestAnnotations annotations; // helper that recognises @Test, @BeforeEach, ...
