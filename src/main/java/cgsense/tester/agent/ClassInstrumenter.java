@@ -6,9 +6,13 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.JSRInlinerAdapter;
 
 /**
- * Registers each method with {@link Recorder} and wraps it with a
- * {@link MethodInstrumenter}.
+ * ClassInstrumenter reads each class's header (name, Java version, whether it's
+ * a JUnit 3 test class).
+ * Then, for each method that has real code and isn't a compiler-generated
+ * forwarder, it registers the method with Recorder to get an id, and wraps it
+ * in MethodInstrumenter to insert the recording calls. I
  */
+// its called from CallGraphTransformer.java.
 final class ClassInstrumenter extends ClassVisitor {
   private static final int API = Opcodes.ASM9;
   private static final int FIRST_VERSION_WITHOUT_JSR = 50; // Java 6

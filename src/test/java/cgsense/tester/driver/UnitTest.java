@@ -3,7 +3,6 @@ package cgsense.tester.driver;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -12,16 +11,15 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import cgsense.app.Main;
-import cgsense.app.cmd.CliCommand;
-import cgsense.app.cmd.VersionCommand;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.ParseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import cgsense.app.Main;
+import cgsense.app.cmd.CliCommand;
+import cgsense.app.cmd.VersionCommand;
 import cgsense.tester.driver.SurefireReports.TestInvocation;
 
 class UnitTest {
@@ -117,7 +115,7 @@ class UnitTest {
 
   private static TestRunOptions options(BuildTool tool, String tests) {
     return new TestRunOptions(Path.of("agent.jar"), List.of("sample/"), List.of(), null, tests,
-        null, null, false, 60, 0, "mvn", "gradle", tool);
+        null, null, false, 60, "mvn", "gradle", tool);
   }
 
   @Test
@@ -187,19 +185,16 @@ class UnitTest {
         "--commit", "abc123",
         "--include", "org/x/",
         "--include=org/y/",
-        "--record-events",
         "--repeats", "5");
 
     RunOptions run = RunOptions.from(cl);
 
     assertEquals(List.of("org/x/", "org/y/"), run.includes);
     assertEquals(5, run.repeats);
-    assertTrue(run.recordEvents);
 
     // Defaults
     assertEquals(List.of(), run.excludes);
     assertEquals(60, run.flush);
-    assertEquals(5000000L, run.maxEvents);
     assertEquals("auto", run.buildTool);
     assertEquals("mvn", run.mvn);
     assertNull(run.timeout);
@@ -217,6 +212,7 @@ class UnitTest {
   void commandLineExitCodes() {
     // General help and program version still work.
     assertEquals(0, Main.execute("--help"));
+    assertEquals(0, Main.execute("--version"));
 
     // Version is the only registered command.
     assertEquals(0, Main.execute("version", "--help"));

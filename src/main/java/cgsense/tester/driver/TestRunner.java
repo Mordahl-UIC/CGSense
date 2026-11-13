@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /** Running a project's tests under the agent. */
-public final class TestRunner {
+final class TestRunner {
   /**
    * Plugins that are irrelevant to running tests and often break on historical
    * commits.
@@ -35,9 +35,6 @@ public final class TestRunner {
     parts.add("include=" + String.join(":", options.includes));
     parts.add("out=" + dumpsDir);
     parts.add("flush=" + options.flushSeconds);
-    if (options.maxEvents > 0) {
-      parts.add("events=" + options.maxEvents);
-    }
     if (!options.excludes.isEmpty()) {
       parts.add("exclude=" + String.join(":", options.excludes));
     }
@@ -149,7 +146,7 @@ public final class TestRunner {
       testLog = runDir.resolve(GRADLE_TEST_LOG);
       Files.deleteIfExists(testLog);
       initScript = runDir.resolve(GRADLE_LISTENER);
-      try (InputStream in = TestRunner.class.getResourceAsStream("/cgsense/tester/test-listener.gradle")) {
+      try (InputStream in = TestRunner.class.getResourceAsStream("cgsense/tester/test-listener.gradle")) {
         Files.copy(in, initScript, StandardCopyOption.REPLACE_EXISTING);
       }
     }

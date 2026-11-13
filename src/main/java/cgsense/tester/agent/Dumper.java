@@ -12,11 +12,26 @@ import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 
 /**
- * Writes the recorded call graph of this JVM as JSON: periodically (so a
- * crashed or killed JVM
- * still leaves data, marked {@code "complete": false}) and once more from a
- * shutdown hook.
+ * Dumper picks a unique file per JVM and saves Recorder's data as JSON:
+ * periodically as complete: false, so a killed JVM still leaves data,
+ * and once at exit as complete: true. It always writes to a temp file and
+ * renames it, so the dump on disk is never half-written, and it never
+ * lets a write failure affect the tests.
  */
+
+/*
+ * Who calls Dumper, and when:
+ *
+ * Caller Method When
+ * ----------------------------------------- --------------------
+ * --------------------------------------
+ * Recorder.start(config) Dumper.start(config) Once, at JVM startup
+ * Thread "dyncg-periodic-dump" (own thread) write(false) Every flushSeconds
+ * while the JVM runs
+ * Thread "dyncg-shutdown-dump" (shutdown write(true) Once, when the JVM exits
+ * hook, registered in start())
+ */
+
 final class Dumper {
   private static final Object LOCK = new Object();
   private static AgentConfig config;
@@ -30,11 +45,18 @@ final class Dumper {
   static void start(AgentConfig agentConfig) {
     config = agentConfig;
     startMillis = System.currentTimeMillis();
-    pid = processId();
+    pid = processId();// One test run can start several JVMs that all write to the same dumps/ folder:
+                      // forked test JVMs, Gradle workers, sometimes the build tool's own JVM. Process
+                      // id plus start time gives each one its own file, so they don't overwrite each
+                      // other.
     String baseName = "dyncg-" + pid + "-" + startMillis;
     target = new File(config.outDir, baseName + ".json");
-    EventLog.start(config, baseName);
 
+    /*
+     * A shutdown hook is a thread the JVM runs just before it exits. It runs when
+     * main finishes, on System.exit(), or on Ctrl-C / a normal kill signal.
+     * It calls write(true). The true means complete: this is the final, full data.
+     */
     Thread hook = new Thread(new Runnable() {
       @Override
       public void run() {
@@ -43,6 +65,17 @@ final class Dumper {
     }, "dyncg-shutdown-dump");
     Runtime.getRuntime().addShutdownHook(hook);
 
+    /*
+     * Every flushSeconds (default 60), it saves a snapshot with complete = false.
+     * If the test JVM is later killed (for example by a test timeout), the last
+     * snapshot is still on disk. You lose at most a minute of data instead of all
+     * of it.
+     * setDaemon(true): a daemon thread doesn't keep the JVM alive. Without this,
+     * the endless while (true) loop would stop the test JVM from ever exiting.
+     * InterruptedException → return: if the thread is interrupted, it stops
+     * quietly.
+     * With --flush 0, there's no periodic writer, only the final write.
+     */
     if (config.flushSeconds > 0) {
       Thread flusher = new Thread(new Runnable() {
         @Override
@@ -63,12 +96,13 @@ final class Dumper {
   }
 
   static void write(boolean complete) {
-    synchronized (LOCK) {
+    synchronized (LOCK) { // This makes sure only one write happens at a time. Without it, the periodic
+                          // writer and the shutdown hook could both write at the moment of exit.
       try {
-        // Flush events first, so every logged event's edge is in the snapshot taken
-        // next.
-        EventLog.flushAll();
-        Recorder.Snapshot snap = Recorder.snapshot();
+        Recorder.Snapshot snap = Recorder.snapshot(); // This copies Recorder's current tables (methods, contexts, edge
+                                                      // counts, failure counts) into plain arrays.
+                                                      // Writing then works on a frozen copy, while the tests keep
+                                                      // running and changing the live data.
         if (snap.methods.length <= 1 && snap.transformFailureCount == 0) {
           return; // no project class was loaded in this JVM
         }
@@ -78,6 +112,9 @@ final class Dumper {
           System.err.println("[dyncg] cannot create " + config.outDir);
           return;
         }
+        // The JSON is first written to dyncg-....json.tmp, through a 64 KB buffer (1 <<
+        // 16 = 65536) for speed. Then the temp file is renamed over the real file in
+        // one atomic step: it either fully happens or doesn't happen at all.
         File tmp = new File(target.getPath() + ".tmp");
         Writer out = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(tmp),
             StandardCharsets.UTF_8), 1 << 16);
@@ -108,21 +145,6 @@ final class Dumper {
     out.write(",\"classes_instrumented\":" + snap.classesInstrumented);
     out.write(",\"transform_failure_count\":" + snap.transformFailureCount);
     out.write(",\"overflowed_edges\":" + snap.overflowedEdges);
-    out.write(",\"events_file\":");
-    if (EventLog.fileName() == null) {
-      out.write("null");
-    } else {
-      string(out, EventLog.fileName());
-    }
-    out.write(",\"events_max\":" + EventLog.max());
-    out.write(",\"events_recorded\":" + EventLog.recorded());
-    out.write(",\"events_limit_reached\":" + (EventLog.enabled() && EventLog.limitReached()));
-    out.write(",\"events_error\":");
-    if (EventLog.error() == null) {
-      out.write("null");
-    } else {
-      string(out, EventLog.error());
-    }
 
     out.write(",\"transform_failures\":[");
     for (int i = 0; i < snap.transformFailures.length; i++) {

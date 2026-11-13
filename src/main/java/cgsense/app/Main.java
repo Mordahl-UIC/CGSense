@@ -19,6 +19,7 @@ import cgsense.app.cmd.VersionCommand;
 import cgsense.tester.driver.UsageException;
 
 public class Main {
+  public static final String VERSION = "0.1.0";
 
   private static final Map<String, CliCommand> COMMANDS = new LinkedHashMap<>();
 
@@ -50,32 +51,34 @@ public class Main {
       printUsage(System.out);
       return 0;
     }
-
-    CliCommand cmd = COMMANDS.get(args[0]);
-    if (cmd == null) {
-      System.err.printf("Unknown command: %s\n", args[0]);
+    if (args[0].equals("--version") || args[0].equals("-V")) {
+      System.out.println("dyncg " + VERSION);
+      return 0;
+    }
+    CliCommand command = COMMANDS.get(args[0]);
+    if (command == null) {
+      System.err.println("dyncg: unknown command '" + args[0] + "'");
       printUsage(System.err);
       return 2;
     }
-
     String[] rest = Arrays.copyOfRange(args, 1, args.length);
     if (Arrays.stream(rest).anyMatch(Main::isHelp)) {
-      return printHelp(cmd);
+      return printHelp(command);
     }
-
     try {
       // No abbreviations: "--max" must not silently mean "--max-events".
-      CommandLine cl = DefaultParser.builder().setAllowPartialMatching(false).get().parse(cmd.options(), rest);
+      CommandLine cl = DefaultParser.builder().setAllowPartialMatching(false).get()
+          .parse(command.options(), rest);
       if (!cl.getArgList().isEmpty()) {
         throw new UsageException("unexpected argument(s): " + String.join(" ", cl.getArgList()));
       }
-      return cmd.run(cl);
-    } catch (ParseException | UsageException e) {
-      System.err.println(cmd.name() + ": " + e.getMessage());
-      System.err.println("Run '" + cmd.name() + " --help' for its options.");
+      return command.run(cl);
+    } catch (ParseException | UsageException error) {
+      System.err.println("dyncg " + command.name() + ": " + error.getMessage());
+      System.err.println("Run 'dyncg " + command.name() + " --help' for its options.");
       return 2;
-    } catch (Exception e) {
-      e.printStackTrace();
+    } catch (Exception error) {
+      error.printStackTrace();
       return 1;
     }
   }

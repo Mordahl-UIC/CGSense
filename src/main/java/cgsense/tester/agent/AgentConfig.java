@@ -4,44 +4,41 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Agent options: comma-separated key=value pairs; list values are separated by
- * ':'.
- */
+//It parses the option string from -javaagent:...=include=...,out=...,flush=... into the include and exclude prefixes, 
+// the output folder and the flush interval, rejecting bad input. Its matches() method then tells the agent whether a class should be instrumented.
+//So parse runs only once, outDir and flushSeconds are read whenever a dump is written, and matches runs for every loaded class. Nothing in driver/ uses AgentConfig. So its is called from
+//Agent.java, Recorder.java, Dumper.java, and CallGraphTransformer.java.
 final class AgentConfig {
   /** Never instrumented, whatever the include list says. */
   private static final String[] ALWAYS_EXCLUDED = {
-      "java/", "javax/", "jdk/", "sun/", "com/sun/", "cgsense/tester/agent/",
+      "java/", "javax/", "jdk/", "sun/", "com/sun/", "cgsense/",
   };
 
-  final String[] includes;
-  final String[] excludes;
-  final File outDir;
-  final long flushSeconds;
-  /**
-   * Maximum number of individual invocations logged per JVM; 0 disables the event
-   * log.
-   */
-  final long maxEvents;
+  final String[] includes; // package prefixes to instrument, the driver fills it if i don't, the user can
+                           // override it with -javaagent:dyncg-agent.jar=include=...
+  final String[] excludes; // prefixes to skip, even if included
+  final File outDir; // where the Dumper writes the JSON files
+  final long flushSeconds; // how often the Dumper writes (default 60 s)
 
-  /** Used for {@code events=true}. */
-  static final long DEFAULT_MAX_EVENTS = 5000000L;
-
-  private AgentConfig(String[] includes, String[] excludes, File outDir, long flushSeconds,
-      long maxEvents) {
+  private AgentConfig(String[] includes, String[] excludes, File outDir, long flushSeconds) {
     this.includes = includes;
     this.excludes = excludes;
     this.outDir = outDir;
     this.flushSeconds = flushSeconds;
-    this.maxEvents = maxEvents;
   }
 
+  // parse reads the agent's option string (like
+  // include=demo/,out=/x/dumps,flush=30), splits it into key=value pairs, and
+  // collects the include and exclude prefixes, the output folder and the flush
+  // interval (default 60 seconds).
+  // It rejects anything malformed, unknown or missing (include and out are
+  // required) with an IllegalArgumentException; otherwise it returns a
+  // ready-to-use AgentConfig object.
   static AgentConfig parse(String args) {
     List<String> includes = new ArrayList<String>();
     List<String> excludes = new ArrayList<String>();
     String out = null;
     long flush = 60;
-    long maxEvents = 0;
     if (args != null) {
       for (String part : args.split(",")) {
         part = part.trim();
@@ -62,15 +59,6 @@ final class AgentConfig {
           out = value;
         } else if (key.equals("flush")) {
           flush = Long.parseLong(value);
-        } else if (key.equals("events")) {
-          // events=<max per JVM>; true/false are accepted for the default limit / off
-          if (value.equalsIgnoreCase("true")) {
-            maxEvents = DEFAULT_MAX_EVENTS;
-          } else if (value.equalsIgnoreCase("false")) {
-            maxEvents = 0;
-          } else {
-            maxEvents = Long.parseLong(value);
-          }
         } else {
           throw new IllegalArgumentException("unknown option '" + key + "'");
         }
@@ -82,23 +70,30 @@ final class AgentConfig {
     if (out == null) {
       throw new IllegalArgumentException("no out directory given");
     }
-    if (maxEvents < 0 || maxEvents > Integer.MAX_VALUE) {
-      throw new IllegalArgumentException("events must be between 0 and " + Integer.MAX_VALUE);
-    }
     return new AgentConfig(includes.toArray(new String[0]), excludes.toArray(new String[0]),
-        new File(out), flush, maxEvents);
+        new File(out), flush);
   }
 
+  // It splits one option value into separate package prefixes and adds them to a
+  // list. parse calls it for include=... and exclude=....
   private static void addPrefixes(List<String> target, String value) {
     for (String prefix : value.split(":")) {
-      prefix = prefix.trim().replace('.', '/');
+      prefix = prefix.trim().replace('.', '/');// remove spaces, and turn com.foo. into com/foo/
       if (!prefix.isEmpty()) {
         target.add(prefix);
       }
     }
   }
 
-  /** Whether a class (internal name) belongs to the instrumented project code. */
+  /**
+   * CallGraphTransformer calls this for every class the JVM loads, to decide
+   * whether that class should be instrumented. It checks three lists, in order:
+   * 1. starts with an ALWAYS_EXCLUDED prefix (java/, javax/, jdk/, sun/,
+   * com/sun/, dyncg/) → false
+   * 2. starts with a user exclude prefix → false
+   * 3. starts with a user include prefix → true
+   * 4. none of the above → false
+   */
   boolean matches(String internalName) {
     for (String prefix : ALWAYS_EXCLUDED) {
       if (internalName.startsWith(prefix)) {
