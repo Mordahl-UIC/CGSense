@@ -94,18 +94,7 @@ class UnitTest {
         assertEquals("unknown", sources.originOf("q.B"));
     }
 
-    @Test
-    void classifiesOutcomes() {
-        assertEquals("pass_pass", PairRunner.classify("passed", "passed"));
-        assertEquals("fail_pass", PairRunner.classify("error", "passed"));
-        assertEquals("pass_fail", PairRunner.classify("passed", "failed"));
-        assertEquals("fail_fail", PairRunner.classify("failed", "error"));
-        assertEquals("unstable", PairRunner.classify("flaky", "passed"));
-        assertEquals("skipped", PairRunner.classify("skipped", "passed"));
-        assertEquals("after_only", PairRunner.classify(null, "passed"));
-        assertEquals("before_only", PairRunner.classify("passed", null));
-        assertEquals("not_reported", PairRunner.classify("not_reported", "passed"));
-    }
+    
 
     @Test
     void roundsLikePython() {
@@ -186,24 +175,36 @@ class UnitTest {
     }
 
     @Test
-    void parsesRepeatableOptionsAndDefaults() throws ParseException {
-        CommandLine cl = parse(new PairCommand(), "--repo", "r", "--before", "a", "--after", "b", "--out", "o",
-                "--include", "org/x/", "--include=org/y/", "--maven-arg=-Dfoo=bar", "--maven-arg", "-o",
-                "--record-events", "--repeats", "5");
-        RunOptions run = RunOptions.from(cl);
-        assertEquals(List.of("org/x/", "org/y/"), run.includes);
-        assertEquals(List.of("-Dfoo=bar", "-o"), run.mavenArgs);
-        assertEquals(5, run.repeats);
-        assertTrue(run.recordEvents);
-        // defaults
-        assertEquals(List.of(), run.excludes);
-        assertEquals(60, run.flush);
-        assertEquals(5000000L, run.maxEvents);
-        assertEquals("auto", run.buildTool);
-        assertEquals("mvn", run.mvn);
-        assertNull(run.timeout);
-        assertNull(run.javaHome);
-    }
+void parsesRepeatableOptionsAndDefaults() throws ParseException {
+    CommandLine cl = parse(
+            new VersionCommand(),
+            "--project-dir", "project",
+            "--out", "output",
+            "--label", "before",
+            "--commit", "abc123",
+            "--include", "org/x/",
+            "--include=org/y/",
+            "--maven-arg=-Dfoo=bar",
+            "--maven-arg", "-o",
+            "--record-events",
+            "--repeats", "5");
+
+    RunOptions run = RunOptions.from(cl);
+
+    assertEquals(List.of("org/x/", "org/y/"), run.includes);
+    assertEquals(List.of("-Dfoo=bar", "-o"), run.mavenArgs);
+    assertEquals(5, run.repeats);
+    assertTrue(run.recordEvents);
+
+    // Defaults
+    assertEquals(List.of(), run.excludes);
+    assertEquals(60, run.flush);
+    assertEquals(5000000L, run.maxEvents);
+    assertEquals("auto", run.buildTool);
+    assertEquals("mvn", run.mvn);
+    assertNull(run.timeout);
+    assertNull(run.javaHome);
+}
 
     @Test
     void rejectsBadNumbers() throws ParseException {
@@ -212,16 +213,55 @@ class UnitTest {
         assertEquals("--repeats: not a number: 'two'", error.getMessage());
     }
 
-    @Test
-    void commandLineExitCodes() {
-        assertEquals(0, Main.execute("--help"));
-        assertEquals(0, Main.execute("--version"));
-        assertEquals(0, Main.execute("pair", "--help"));
-        assertEquals(2, Main.execute());
-        assertEquals(2, Main.execute("nope"));
-        assertEquals(2, Main.execute("version", "--out", "o")); // --project-dir missing
-        assertEquals(2, Main.execute("version", "--project-dir", "p", "--out", "o", "--no-such-option"));
-        assertEquals(2, Main.execute("version", "--project-dir", "p", "--out", "o", "--max", "3")); // no abbreviations
-        assertEquals(2, Main.execute("version", "--project-dir", "p", "--out", "o", "extra"));
-    }
+@Test
+void commandLineExitCodes() {
+    // General help and program version still work.
+    assertEquals(0, Main.execute("--help"));
+    assertEquals(0, Main.execute("--version"));
+
+    // Version is the only registered command.
+    assertEquals(0, Main.execute("version", "--help"));
+
+    // Removed commands must be rejected.
+    assertEquals(2, Main.execute("pair", "--help"));
+    assertEquals(2, Main.execute("rebuild", "--help"));
+
+    // Missing or unknown commands are rejected.
+    assertEquals(2, Main.execute());
+    assertEquals(2, Main.execute("nope"));
+
+    // --project-dir is required.
+    assertEquals(
+            2,
+            Main.execute(
+                    "version",
+                    "--out", "o"));
+
+    // Unknown options are rejected.
+    assertEquals(
+            2,
+            Main.execute(
+                    "version",
+                    "--project-dir", "p",
+                    "--out", "o",
+                    "--no-such-option"));
+
+    // Partial option-name matching is disabled.
+    assertEquals(
+            2,
+            Main.execute(
+                    "version",
+                    "--project-dir", "p",
+                    "--out", "o",
+                    "--max", "3"));
+
+    // Extra positional arguments are rejected.
+    assertEquals(
+            2,
+            Main.execute(
+                    "version",
+                    "--project-dir", "p",
+                    "--out", "o",
+                    "extra"));
+}
 }

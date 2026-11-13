@@ -10,7 +10,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
-/** Test-execution options shared by the {@code pair} and {@code version} commands. */
+/** Test-execution options for the version command. */
 final class RunOptions {
     List<String> includes;
     List<String> excludes;
@@ -37,7 +37,7 @@ final class RunOptions {
                         "package prefix to instrument, e.g. org/jsoup/ (repeatable; default: detected)"))
                 .addOption(value("exclude", "prefix", "package prefix to skip (repeatable)"))
                 .addOption(value("tests", "patterns",
-                        "test class/pattern selection, comma-separated, applied to both versions"))
+                        "test class/pattern selection, comma-separated"))
                 .addOption(value("repeats", "n", "test runs per version (default 2)"))
                 .addOption(value("java-home", "dir", "JDK used to run the build and tests"))
                 .addOption(value("test-timeout", "seconds", "seconds per forked test JVM (surefire.timeout)"))

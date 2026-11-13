@@ -1,7 +1,6 @@
 #!/bin/sh
-# Runs the dyncg driver: bin/dyncg {pair,version,rebuild} ...
-# The driver needs Java 21 or newer. If `java` on the PATH is older, set DYNCG_JAVA to a java
-# executable or JAVA_HOME to a JDK 21+ (DYNCG_JAVA wins).
+# Runs dyncg for an existing checked-out project.
+# Usage: bin/dyncg version [options].
 here=$(cd "$(dirname "$0")/.." && pwd)
 java=${DYNCG_JAVA:-${JAVA_HOME:+$JAVA_HOME/bin/java}}
 java=${java:-java}

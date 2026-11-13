@@ -13,12 +13,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.help.HelpFormatter;
 import org.apache.commons.cli.help.TextHelpAppendable;
 
-/** Command line: {@code java -jar dyncg.jar {pair,version,rebuild} ...}. */
-/*The current project supports three commands:
- * - `pair`: Generate call graphs for a commit pair.
- * - `version`: Generate a call graph for a single version.
- * - `rebuild`: Rebuild the call graphs.
- */
+/** Command line for generating a call graph from an existing checkout. */
 public final class Main {
     public static final String VERSION = "0.1.0";
 
@@ -26,12 +21,10 @@ public final class Main {
     private static final Map<String, String> DESCRIPTIONS = new LinkedHashMap<>();
 
     static {
-        register(new PairCommand(), "Call graphs for the before and after commit of a pair.");
-        register(new VersionCommand(), "Call graph for one already checked-out version.");
-        register(new RebuildCommand(),
-                "Rebuild callgraph.json from the raw outputs of earlier test runs, without running tests.");
-    }
-
+    register(
+            new VersionCommand(),
+            "Generate a dynamic call graph for an already checked-out project.");
+}
     private Main() {
     }
 
@@ -96,7 +89,7 @@ public final class Main {
 
     private static void printUsage(PrintStream out) {
         out.println("usage: dyncg <command> [options]");
-        out.println("Dynamic call graphs for the before and after versions of a commit pair.");
+        out.println("Generate a dynamic call graph for an already checked-out Java project.");
         out.println();
         out.println("Commands:");
         DESCRIPTIONS.forEach((name, description) -> out.printf("  %-9s %s%n", name, description));

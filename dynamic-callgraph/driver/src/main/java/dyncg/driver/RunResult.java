@@ -7,9 +7,9 @@ import java.util.List;
 final class RunResult {
     final int index;
     final Path runDir;
-    /** Build command line; null for runs loaded by {@code rebuild}. */
+ /** Build command line used for this run. */
     final List<String> command;
-    /** Null when the run timed out or was loaded by {@code rebuild}. */
+   /** Process exit code; null when no exit code was available. */
     final Integer exitCode;
     final boolean timedOut;
     final double durationSeconds;

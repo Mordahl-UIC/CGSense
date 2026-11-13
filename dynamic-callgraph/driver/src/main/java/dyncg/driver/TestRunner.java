@@ -196,28 +196,7 @@ final class TestRunner {
                 testLog);
     }
 
-    /** Runs saved earlier under runsDir/&lt;index&gt;/{dumps,surefire-reports}, for {@code rebuild}. */
-    static List<RunResult> existingRuns(Path runsDir) throws IOException {
-        List<Path> dirs;
-        try (Stream<Path> stream = Files.list(runsDir)) {
-            dirs = stream.filter(Files::isDirectory)
-                    .filter(p -> p.getFileName().toString().matches("\\d+"))
-                    .sorted(Comparator.comparingInt(p -> Integer.parseInt(p.getFileName().toString())))
-                    .collect(Collectors.toList());
-        }
-        if (dirs.isEmpty()) {
-            throw new UsageException("no run directories (0, 1, ...) in " + runsDir);
-        }
-        List<RunResult> runs = new ArrayList<>();
-        for (Path dir : dirs) {
-            Path testLog = dir.resolve(GRADLE_TEST_LOG);
-            runs.add(new RunResult(Integer.parseInt(dir.getFileName().toString()), dir, null, null, false, 0,
-                    dumpFiles(dir.resolve("dumps")),
-                    SurefireReports.copiedReportDirs(dir.resolve("surefire-reports")),
-                    Files.isRegularFile(testLog) ? testLog : null));
-        }
-        return runs;
-    }
+   
 
     private static List<Path> dumpFiles(Path dumpsDir) throws IOException {
         List<Path> files = new ArrayList<>();
