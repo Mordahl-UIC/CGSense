@@ -1,0 +1,21 @@
+#!/bin/sh
+
+# Compares two callgraph.json files produced by dyncg version.
+
+here=$(cd "$(dirname "$0")/.." && pwd)
+
+java=${DYNCG_JAVA:-${JAVA_HOME:+$JAVA_HOME/bin/java}}
+java=${java:-java}
+
+jar="$here/driver/target/dyncg.jar"
+
+if [ ! -f "$jar" ]; then
+    echo "dyncg-diff: driver JAR not found: $jar" >&2
+    echo "Build it with: mvn -B package" >&2
+    exit 2
+fi
+
+exec "$java" \
+    -cp "$jar" \
+    dyncg.driver.CallGraphDiffMain \
+    "$@"
