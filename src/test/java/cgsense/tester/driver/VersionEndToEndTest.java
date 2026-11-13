@@ -1,11 +1,14 @@
-package dyncg.driver;
+package cgsense.tester.driver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Map;
+
+import cgsense.app.Main;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -27,21 +30,15 @@ final class VersionEndToEndTest {
             @TempDir Path tempDir)
             throws Exception {
 
-        Path projectRoot = Path.of(
-                System.getProperty("dyncg.project.root"))
+        Path fixture = Paths.get("src/test/fixture/version-pair")
                 .toAbsolutePath()
                 .normalize();
 
-        Path agentJar = Path.of(
-                System.getProperty("dyncg.agent.jar"))
-                .toAbsolutePath()
-                .normalize();
+        Path agentJar = TestRunOptions.defaultAgentJar();
 
-        Path beforeProject = projectRoot.resolve(
-                "examples/version-pair/before");
+        Path beforeProject = fixture.resolve("before");
 
-        Path afterProject = projectRoot.resolve(
-                "examples/version-pair/after");
+        Path afterProject = fixture.resolve("after");
 
         Path beforeOutput = tempDir.resolve("before");
         Path afterOutput = tempDir.resolve("after");

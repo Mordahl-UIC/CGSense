@@ -15,8 +15,6 @@ import org.apache.commons.cli.help.TextHelpAppendable;
 import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
-import cgsense.app.cmd.PairCommand;
-import cgsense.app.cmd.RebuildCommand;
 import cgsense.app.cmd.VersionCommand;
 import cgsense.tester.driver.UsageException;
 
@@ -28,9 +26,7 @@ public class Main {
   static {
     reigster(new DiscoverCommand());
     reigster(new CommitMinerCommand());
-    reigster(new PairCommand());
     reigster(new VersionCommand());
-    reigster(new RebuildCommand());
   }
 
   private static void reigster(CliCommand c) {

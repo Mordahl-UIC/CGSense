@@ -11,8 +11,7 @@ import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 
 /**
- * Test-execution options shared by the {@code pair} and {@code version}
- * commands.
+ * Test-execution options for the {@code version} command.
  */
 public final class RunOptions {
   public List<String> includes;
@@ -24,8 +23,6 @@ public final class RunOptions {
   Integer timeout;
   boolean offline;
   String buildTool;
-  List<String> mavenArgs;
-  List<String> gradleArgs;
   int flush;
   boolean recordEvents;
   long maxEvents;
@@ -40,17 +37,12 @@ public final class RunOptions {
             "package prefix to instrument, e.g. org/jsoup/ (repeatable; default: detected)"))
         .addOption(value("exclude", "prefix", "package prefix to skip (repeatable)"))
         .addOption(value("tests", "patterns",
-            "test class/pattern selection, comma-separated, applied to both versions"))
+            "test class/pattern selection, comma-separated"))
         .addOption(value("repeats", "n", "test runs per version (default 2)"))
         .addOption(value("java-home", "dir", "JDK used to run the build and tests"))
         .addOption(value("test-timeout", "seconds", "seconds per forked test JVM (surefire.timeout)"))
         .addOption(value("timeout", "seconds", "seconds per build invocation"))
-        .addOption(flag("offline", "run the build tool offline"))
         .addOption(value("build-tool", "tool", "auto, maven or gradle (default: auto)"))
-        .addOption(value("maven-arg", "arg",
-            "extra Maven argument (repeatable; use --maven-arg=-X for dashes)"))
-        .addOption(value("gradle-arg", "arg",
-            "extra Gradle argument (repeatable; use --gradle-arg=-X for dashes)"))
         .addOption(value("flush", "seconds", "agent snapshot interval in seconds (0 = only at exit)"))
         .addOption(flag("record-events", "also log individual invocations in order (see --max-events)"))
         .addOption(value("max-events", "n",
@@ -69,10 +61,8 @@ public final class RunOptions {
     run.javaHome = path(cl, "java-home");
     run.testTimeout = cl.hasOption("test-timeout") ? intValue(cl, "test-timeout", 0) : null;
     run.timeout = cl.hasOption("timeout") ? intValue(cl, "timeout", 0) : null;
-    run.offline = cl.hasOption("offline");
+    run.offline = true;
     run.buildTool = cl.getOptionValue("build-tool", "auto");
-    run.mavenArgs = values(cl, "maven-arg");
-    run.gradleArgs = values(cl, "gradle-arg");
     run.flush = intValue(cl, "flush", 60);
     run.recordEvents = cl.hasOption("record-events");
     run.maxEvents = longValue(cl, "max-events", 5000000L);
@@ -94,7 +84,7 @@ public final class RunOptions {
       throw new UsageException("--max-events must be between 1 and " + Integer.MAX_VALUE);
     }
     return new TestRunOptions(agent, includeList, excludes, FileUtil.abs(javaHome), tests, testTimeout, timeout,
-        offline, mavenArgs, gradleArgs, flush, recordEvents ? maxEvents : 0, mvn, gradle, BuildTool.parse(buildTool));
+        offline, flush, recordEvents ? maxEvents : 0, mvn, gradle, BuildTool.parse(buildTool));
   }
 
   // ---- option definitions and typed values, shared by all commands

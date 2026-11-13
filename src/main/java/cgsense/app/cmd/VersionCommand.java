@@ -4,7 +4,7 @@ import java.nio.file.Path;
 import java.util.List;
 
 import cgsense.tester.driver.FileUtil;
-import cgsense.tester.driver.PairRunner;
+import cgsense.tester.driver.VersionRunner;
 import cgsense.tester.driver.ProjectSources;
 import cgsense.tester.driver.RunOptions;
 import cgsense.tester.driver.UsageException;
@@ -37,7 +37,7 @@ public final class VersionCommand implements CliCommand {
     if (includes.isEmpty()) {
       throw new UsageException("could not detect project packages; pass --include");
     }
-    PairRunner.runVersion(cl.getOptionValue("label", "version"), cl.getOptionValue("commit"), project,
+    VersionRunner.run(cl.getOptionValue("label", "version"), cl.getOptionValue("commit"), project,
         FileUtil.abs(RunOptions.path(cl, "out")), run.repeats, run.toOptions(includes), sources);
     return 0;
   }

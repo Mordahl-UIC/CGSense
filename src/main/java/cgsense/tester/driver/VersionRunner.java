@@ -1,4 +1,4 @@
-package dyncg.driver;
+package cgsense.tester.driver;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,7 +11,7 @@ import java.util.List;
  * project version.
  *
  */
-final class VersionRunner {
+public final class VersionRunner {
 
     private VersionRunner() {
     }
@@ -30,7 +30,7 @@ final class VersionRunner {
      * @param sources    information about the project's source directories
      * @return the generated graph
      */
-    static VersionGraph run(
+    public static VersionGraph run(
             String label,
             String commit,
             Path projectDir,

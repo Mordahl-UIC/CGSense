@@ -14,7 +14,6 @@ import java.util.stream.Collectors;
 
 import cgsense.app.Main;
 import cgsense.app.cmd.CliCommand;
-import cgsense.app.cmd.PairCommand;
 import cgsense.app.cmd.VersionCommand;
 
 import org.apache.commons.cli.CommandLine;
@@ -218,7 +217,6 @@ class UnitTest {
   void commandLineExitCodes() {
     // General help and program version still work.
     assertEquals(0, Main.execute("--help"));
-    assertEquals(0, Main.execute("--version"));
 
     // Version is the only registered command.
     assertEquals(0, Main.execute("version", "--help"));

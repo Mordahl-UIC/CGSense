@@ -22,7 +22,7 @@ public final class Json {
         return MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(value);
     }
 
-    static void writePretty(Path path, Object value) throws IOException {
+    public static void writePretty(Path path, Object value) throws IOException {
         Files.writeString(path, pretty(value) + "\n");
     }
 }
