@@ -70,8 +70,7 @@ final class VersionEndToEndTest {
                 "--include", "demo/",
                 "--repeats", "1",
                 "--java-home", System.getProperty("java.home"),
-                "--agent-jar", agentJar.toString(),
-                "--offline");
+                "--agent-jar", agentJar.toString());
 
         assertEquals(
                 0,
@@ -87,8 +86,7 @@ final class VersionEndToEndTest {
                 "--include", "demo/",
                 "--repeats", "1",
                 "--java-home", System.getProperty("java.home"),
-                "--agent-jar", agentJar.toString(),
-                "--offline");
+                "--agent-jar", agentJar.toString());
 
         assertEquals(
                 0,

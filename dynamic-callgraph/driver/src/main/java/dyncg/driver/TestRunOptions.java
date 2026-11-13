@@ -18,8 +18,6 @@ final class TestRunOptions {
     /** Seconds per build invocation; null = no limit. */
     final Integer timeoutSeconds;
     final boolean offline;
-    final List<String> mavenArgs;
-    final List<String> gradleArgs;
     final int flushSeconds;
     /** Maximum individual invocations logged per test JVM; 0 = event log off. */
     final long maxEvents;
@@ -28,8 +26,8 @@ final class TestRunOptions {
     final BuildTool buildTool;
 
     TestRunOptions(Path agentJar, List<String> includes, List<String> excludes, Path javaHome, String tests,
-            Integer testTimeoutSeconds, Integer timeoutSeconds, boolean offline, List<String> mavenArgs,
-            List<String> gradleArgs, int flushSeconds, long maxEvents, String mvn, String gradle,
+            Integer testTimeoutSeconds, Integer timeoutSeconds, boolean offline,
+            int flushSeconds, long maxEvents, String mvn, String gradle,
             BuildTool buildTool) {
         this.agentJar = agentJar;
         this.includes = List.copyOf(includes);
@@ -39,8 +37,6 @@ final class TestRunOptions {
         this.testTimeoutSeconds = testTimeoutSeconds;
         this.timeoutSeconds = timeoutSeconds;
         this.offline = offline;
-        this.mavenArgs = List.copyOf(mavenArgs);
-        this.gradleArgs = List.copyOf(gradleArgs);
         this.flushSeconds = flushSeconds;
         this.maxEvents = maxEvents;
         this.mvn = mvn;
@@ -50,17 +46,17 @@ final class TestRunOptions {
 
     TestRunOptions withIncludes(List<String> newIncludes) {
         return new TestRunOptions(agentJar, newIncludes, excludes, javaHome, tests, testTimeoutSeconds,
-                timeoutSeconds, offline, mavenArgs, gradleArgs, flushSeconds, maxEvents, mvn, gradle, buildTool);
+                timeoutSeconds, offline, flushSeconds, maxEvents, mvn, gradle, buildTool);
     }
 
     TestRunOptions withJavaHome(Path newJavaHome) {
         return new TestRunOptions(agentJar, includes, excludes, newJavaHome, tests, testTimeoutSeconds,
-                timeoutSeconds, offline, mavenArgs, gradleArgs, flushSeconds, maxEvents, mvn, gradle, buildTool);
+                timeoutSeconds, offline, flushSeconds, maxEvents, mvn, gradle, buildTool);
     }
 
     TestRunOptions withBuildTool(BuildTool newBuildTool) {
         return new TestRunOptions(agentJar, includes, excludes, javaHome, tests, testTimeoutSeconds,
-                timeoutSeconds, offline, mavenArgs, gradleArgs, flushSeconds, maxEvents, mvn, gradle, newBuildTool);
+                timeoutSeconds, offline, flushSeconds, maxEvents, mvn, gradle, newBuildTool);
     }
 
     /**

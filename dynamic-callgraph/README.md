@@ -64,7 +64,7 @@ mvn -B -pl driver -am \
   test
 ```
 
-The example projects run offline using dependencies already available to the build. A clean environment may need one network-enabled Maven build to populate its local dependency cache.
+Analyzed projects always run offline using dependencies already present in the local Maven or Gradle cache. A clean environment needs a network-enabled build outside dyncg to populate that cache first.
 
 ## Generate one call graph
 
@@ -92,18 +92,8 @@ Run `bin/dyncg version --help` for the complete option list.
 | `--label NAME` | Graph label, such as `before` or `after`; default `version` |
 | `--commit SHA` | Commit identifier recorded as metadata |
 | `--build-tool auto\|maven\|gradle` | Build tool; default is automatic detection |
-| `--include PREFIX` | Package prefix to instrument, such as `org/jsoup/`; repeatable and automatically detected when omitted |
-| `--exclude PREFIX` | Package prefix to skip; repeatable |
-| `--tests PATTERNS` | Comma-separated test class or pattern selection |
 | `--repeats N` | Number of test runs; default `2` |
 | `--java-home DIR` | JDK used by the analyzed project's build and tests |
-| `--test-timeout S` | Maven Surefire forked-JVM timeout |
-| `--timeout S` | Maximum duration of one build invocation |
-| `--offline` | Run Maven or Gradle offline |
-| `--maven-arg=ARG` | Extra Maven argument; repeatable |
-| `--gradle-arg=ARG` | Extra Gradle argument; repeatable |
-| `--record-events` | Record individual invocations in addition to edge counts |
-| `--max-events N` | Maximum recorded invocation events per test JVM; default `5,000,000` |
 
 When comparing two versions, use the same `--include`, `--exclude`, `--tests`, `--repeats`, and project JDK settings. Explicit `--include` values are recommended because automatic package detection runs independently for each directory.
 
@@ -154,12 +144,11 @@ The current diff is structural. It does not report invocation-count changes or c
 
 The driver detects `pom.xml` or Gradle build/settings files in the checkout.
 
-- Maven runs the selected tests with test failures ignored long enough to collect all available results.
+- Maven runs the selected tests under the call-graph agent.
 - Gradle prefers the checkout's `gradlew`; otherwise it uses `gradle` or the executable supplied by `--gradle`.
 - Gradle runs without the daemon, build cache, or configuration cache so repeated executions actually run the tests.
-- Extra build arguments can be supplied with repeatable `--maven-arg` and `--gradle-arg` options.
 
-Buildability filtering is expected to happen upstream. dyncg still invokes the build tool because dynamic calls can only be collected while instrumented tests execute. Failures, timeouts, and missing test results are recorded in the run output.
+Buildability filtering is expected to happen upstream. dyncg still invokes the build tool because dynamic calls can only be collected while instrumented tests execute. Build failures and timeouts are recorded in the run output.
 
 ## How the agent works
 
@@ -203,7 +192,7 @@ One `version` invocation writes:
 `callgraph.json` uses schema version 1:
 
 - `nodes`: method metadata. Node `0` is `<root>`. A signature resembles `org.jsoup.nodes.Element#text()Ljava/lang/String;`.
-- `contexts`: tests, fixtures, and context `0` (`<unattributed>`). Test entries include final and per-run outcomes.
+- `contexts`: tests, fixtures, and context `0` (`<unattributed>`).
 - `edges`: `[context, caller, callee, runs_seen, mean_count, counts_per_run]`.
 - `aggregate_edges`: `[caller, callee, runs_seen, mean_count, contexts]`, combined across contexts.
 - `runs`: commands, exit status, duration, dump details, and test-report counts.
@@ -251,17 +240,3 @@ An aggregate edge is stable when `runs_seen` equals the number of requested runs
   ]
 }
 ```
-
-## Test outcomes and limitations
-
-Failing tests are retained. Calls recorded before a failure remain attributed to that test, and failure details are stored in the context. Across repeated runs, inconsistent outcomes may be classified as flaky or inconsistent.
-
-Dynamic analysis observes only executed behavior:
-
-- methods not reached by the selected tests do not contribute call edges;
-- excluded packages are not instrumented;
-- separately launched processes are visible only if they inherit the agent configuration;
-- environmental differences, unavailable dependencies, external services, or incompatible JDKs can still make a real checkout fail even if it passed an upstream buildability check;
-- `--commit` is metadata and is not validated against `--project-dir`.
-
-Inspect `runs/<n>/build.log`, `stats.runs_without_tests`, and `stats.transform_failures` when a graph is empty or incomplete.

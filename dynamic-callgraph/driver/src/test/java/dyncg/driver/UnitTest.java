@@ -114,7 +114,7 @@ class UnitTest {
 
     private static TestRunOptions options(BuildTool tool, String tests) {
         return new TestRunOptions(Path.of("agent.jar"), List.of("sample/"), List.of(), null, tests,
-                null, null, false, List.of(), List.of("--stacktrace"), 60, 0, "mvn", "gradle", tool);
+                null, null, false, 60, 0, "mvn", "gradle", tool);
     }
 
     @Test
@@ -138,7 +138,7 @@ class UnitTest {
                 "-Dorg.gradle.configuration-cache=false", "-Dorg.gradle.unsafe.configuration-cache=false",
                 "--continue", "--no-build-cache",
                 "cleanTest", "test", "--tests", "FooTest",
-                "--tests", "Bar*", "--stacktrace"), command);
+                "--tests", "Bar*"), command);
     }
 
     @Test
@@ -184,15 +184,12 @@ void parsesRepeatableOptionsAndDefaults() throws ParseException {
             "--commit", "abc123",
             "--include", "org/x/",
             "--include=org/y/",
-            "--maven-arg=-Dfoo=bar",
-            "--maven-arg", "-o",
             "--record-events",
             "--repeats", "5");
 
     RunOptions run = RunOptions.from(cl);
 
     assertEquals(List.of("org/x/", "org/y/"), run.includes);
-    assertEquals(List.of("-Dfoo=bar", "-o"), run.mavenArgs);
     assertEquals(5, run.repeats);
     assertTrue(run.recordEvents);
 

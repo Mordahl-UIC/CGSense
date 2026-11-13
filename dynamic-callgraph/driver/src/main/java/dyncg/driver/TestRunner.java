@@ -64,7 +64,6 @@ final class TestRunner {
         if (options.offline) {
             command.add("-o");
         }
-        command.addAll(options.mavenArgs);
         return command;
     }
 
@@ -115,7 +114,6 @@ final class TestRunner {
         if (options.offline) {
             command.add("--offline");
         }
-        command.addAll(options.gradleArgs);
         return command;
     }
 
