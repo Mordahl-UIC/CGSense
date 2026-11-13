@@ -1,0 +1,127 @@
+package cgsense.tester.driver;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.List;
+
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
+
+/** Test-execution options for the version command. */
+public final class RunOptions {
+  public List<String> includes;
+  List<String> excludes;
+  String tests;
+  public int repeats;
+  Path javaHome;
+  Integer testTimeout;
+  Integer timeout;
+  boolean offline;
+  String buildTool;
+  int flush;
+  Path agentJar;
+  String mvn;
+  String gradle;
+
+  /** Adds the shared options to a command's options. */
+  public static Options addTo(Options options) {
+    return options
+        .addOption(value("include", "prefix",
+            "package prefix to instrument, e.g. org/jsoup/ (repeatable; default: detected)"))
+        .addOption(value("exclude", "prefix", "package prefix to skip (repeatable)"))
+        .addOption(value("tests", "patterns",
+            "test class/pattern selection, comma-separated"))
+        .addOption(value("repeats", "n", "test runs per version (default 2)"))
+        .addOption(value("java-home", "dir", "JDK used to run the build and tests"))
+        .addOption(value("test-timeout", "seconds", "seconds per forked test JVM (surefire.timeout)"))
+        .addOption(value("timeout", "seconds", "seconds per build invocation"))
+        .addOption(value("build-tool", "tool", "auto, maven or gradle (default: auto)"))
+        .addOption(value("flush", "seconds", "agent snapshot interval in seconds (0 = only at exit)"))
+        .addOption(value("agent-jar", "file", "default: <project root>/agent/target/dyncg-agent.jar"))
+        .addOption(value("mvn", "command", "Maven executable (default: mvn)"))
+        .addOption(value("gradle", "command", "Gradle executable when no gradlew exists (default: gradle)"));
+  }
+
+  public static RunOptions from(CommandLine cl) {
+    RunOptions run = new RunOptions();
+    run.includes = values(cl, "include");
+    run.excludes = values(cl, "exclude");
+    run.tests = cl.getOptionValue("tests");
+    run.repeats = intValue(cl, "repeats", 2);
+    run.javaHome = path(cl, "java-home");
+    run.testTimeout = cl.hasOption("test-timeout") ? intValue(cl, "test-timeout", 0) : null;
+    run.timeout = cl.hasOption("timeout") ? intValue(cl, "timeout", 0) : null;
+    run.offline = true;
+    run.buildTool = cl.getOptionValue("build-tool", "auto");
+    run.flush = intValue(cl, "flush", 60);
+    run.agentJar = path(cl, "agent-jar");
+    run.mvn = cl.getOptionValue("mvn", "mvn");
+    run.gradle = cl.getOptionValue("gradle", "gradle");
+    return run;
+  }
+
+  public TestRunOptions toOptions(List<String> includeList) {
+    Path agent = agentJar != null ? FileUtil.abs(agentJar) : TestRunOptions.defaultAgentJar();
+    if (!Files.isRegularFile(agent)) {
+      throw new UsageException("agent jar not found: " + agent + " (build it with: mvn -B package)");
+    }
+    if (repeats < 1) {
+      throw new UsageException("--repeats must be at least 1");
+    }
+    return new TestRunOptions(agent, includeList, excludes, FileUtil.abs(javaHome), tests, testTimeout, timeout,
+        offline, flush, mvn, gradle, BuildTool.parse(buildTool));
+  }
+
+  // ---- option definitions and typed values, shared by all commands
+  // --------------------------
+
+  /**
+   * An option that takes a value, given as {@code --name value} or
+   * {@code --name=value}.
+   */
+  public static Option value(String name, String argName, String description) {
+    return Option.builder().longOpt(name).hasArg().argName(argName).desc(description).get();
+  }
+
+  public static Option required(String name, String argName, String description) {
+    return Option.builder().longOpt(name).hasArg().argName(argName).desc(description).required().get();
+  }
+
+  static Option flag(String name, String description) {
+    return Option.builder().longOpt(name).desc(description).get();
+  }
+
+  /** All values of a repeatable option, in order; empty when it was not given. */
+  public static List<String> values(CommandLine cl, String name) {
+    String[] values = cl.getOptionValues(name);
+    return values == null ? List.of() : Arrays.asList(values);
+  }
+
+  public static Path path(CommandLine cl, String name) {
+    String value = cl.getOptionValue(name);
+    return value == null ? null : Paths.get(value);
+  }
+
+  public static int intValue(CommandLine cl, String name, int defaultValue) {
+    long value = longValue(cl, name, defaultValue);
+    if (value < Integer.MIN_VALUE || value > Integer.MAX_VALUE) {
+      throw new UsageException("--" + name + ": number out of range: " + value);
+    }
+    return (int) value;
+  }
+
+  public static long longValue(CommandLine cl, String name, long defaultValue) {
+    String value = cl.getOptionValue(name);
+    if (value == null) {
+      return defaultValue;
+    }
+    try {
+      return Long.parseLong(value.strip());
+    } catch (NumberFormatException error) {
+      throw new UsageException("--" + name + ": not a number: '" + value + "'");
+    }
+  }
+}

@@ -52,33 +52,32 @@ public class BuildContainer implements AutoCloseable {
         .replace("{jdk}", Integer.toString(jdk));
   }
 
-  public boolean build(String sha) throws IOException {
+  public int build(String sha) throws IOException {
     int jdk = JDKS[JDK_IDX];
     CommandResult r = sh(script(sha, jdk));
 
     String tag = String.format("  %s JDK %d", sha, jdk);
     if (r.exitCode() == 0) {
       System.out.println(tag + "  OK");
-      return true;
+      return jdk;
     }
 
-    System.out.printf("%s  exit %d %n",
-        tag, r.exitCode());
+    System.out.printf("%s  exit %d %n", tag, r.exitCode());
     System.out.println(r.output());
     if (r.exitCode() == 127) {
       throw new IOException("Image is missing a tool or JDK");
     }
-    return false;
+    return -1;
   }
 
-  public boolean buildPair(String parentSha, String childSha) throws IOException {
+  public int buildPair(String parentSha, String childSha) throws IOException {
     for (int tries = 0; tries < JDKS.length; tries++) {
-      if (build(parentSha)) {
+      if (build(parentSha) > 0) {
         return build(childSha);
       }
       JDK_IDX = (JDK_IDX + 1) % JDKS.length;
     }
-    return false;
+    return -1;
   }
 
   public int jdk() {

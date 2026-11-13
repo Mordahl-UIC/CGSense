@@ -108,16 +108,19 @@ public class CommitMiner {
         }
         RevCommit parent = child.getParent(0);
 
-        Set<String> rootFiles = getRootFiles(repo, child);
-        boolean hasBuildSystem = rootFiles.stream().anyMatch(this::isBuildFile);
-        if (!hasBuildSystem) {
+        Set<String> childRootFiles = getRootFiles(repo, child);
+        Set<String> parentRootFiles = getRootFiles(repo, parent);
+        boolean childHasBuildSystem = childRootFiles.stream().anyMatch(this::isBuildFile);
+        boolean parentHasBuildSystem = parentRootFiles.stream().anyMatch(this::isBuildFile);
+        if (!childHasBuildSystem || !parentHasBuildSystem)
           continue;
-        }
+        if (onlyCommentsOrFormatting(repo, diff, parent, child))
+          continue;
 
         List<ChangedFile> files = changedFiles(diff, parent, child);
-        CommitPair pair = select(new CommitPair(fullRepoName, parent.name(), child.name(), files));
-        if (pair != null && !onlyCommentsOrFormatting(repo, diff, parent, child)
-            && box.buildPair(parent.name(), child.name())) {
+        if (select(files)) {
+          int javaVersion = box.buildPair(parent.name(), child.name());
+          CommitPair pair = new CommitPair(fullRepoName, parent.name(), child.name(), javaVersion, files);
           writer.write(pair);
           if (++accepted >= MAX_PAIRS_PER_REPO)
             break;
@@ -133,12 +136,12 @@ public class CommitMiner {
 
   private static final int MAX_JAVA_LINES = 20;
 
-  private CommitPair select(CommitPair pair) {
+  private boolean select(List<ChangedFile> files) {
     int javaLines = 0;
-    for (ChangedFile f : pair.files()) {
+    for (ChangedFile f : files) {
       String p = f.filePath();
       if (isTest(p) || isBuildFile(p)) {
-        return null;
+        return false;
       }
       if (isMainJava(p)) {
         javaLines += f.numLinesAdded() + f.numLinesDeleted();
@@ -146,10 +149,10 @@ public class CommitMiner {
     }
 
     if (javaLines == 0 || javaLines >= MAX_JAVA_LINES) {
-      return null;
+      return false;
     }
 
-    return pair;
+    return true;
   }
 
   private boolean onlyCommentsOrFormatting(Repository repo, DiffFormatter diff,
