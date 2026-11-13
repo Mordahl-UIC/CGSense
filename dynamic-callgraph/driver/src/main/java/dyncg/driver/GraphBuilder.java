@@ -84,28 +84,10 @@ final class GraphBuilder {
         final Map<String, Map<String, Object>> nodes = new HashMap<>();
         /** Context name → kind name. */
         final Map<String, String> contexts = new HashMap<>();
-        final List<EventLogRef> eventLogs = new ArrayList<>();
         final List<Map<String, Object>> dumps = new ArrayList<>();
         final List<List<String>> transformFailures = new ArrayList<>();
         long transformFailureCount;
         long overflowedEdges;
-    }
-
-    /** A JVM's binary event log, with the dump's id tables needed to translate it. */
-    static final class EventLogRef {
-        final int jvm;
-        final Path file;
-        final String[] signatures;
-        final String[] contexts;
-        final AgentDump dump;
-
-        EventLogRef(int jvm, Path file, String[] signatures, String[] contexts, AgentDump dump) {
-            this.jvm = jvm;
-            this.file = file;
-            this.signatures = signatures;
-            this.contexts = contexts;
-            this.dump = dump;
-        }
     }
 
     static RunGraph loadRun(RunResult run) {
@@ -194,9 +176,6 @@ final class GraphBuilder {
         for (long[] edge : dump.edges) {
             EdgeKey key = new EdgeKey(contexts[(int) edge[0]], signatures[(int) edge[1]], signatures[(int) edge[2]]);
             graph.edges.merge(key, edge[3], Long::sum);
-        }
-        if (dump.eventsFile != null) {
-            graph.eventLogs.add(new EventLogRef(jvm, dumpFile.resolveSibling(dump.eventsFile), signatures, contexts, dump));
         }
         graph.transformFailureCount += dump.transformFailureCount;
         graph.transformFailures.addAll(dump.transformFailures);
@@ -351,22 +330,6 @@ final class GraphBuilder {
                 (int) (pair >>> 32), (int) (long) pair, runsSeen(counts), mean(counts),
                 aggregateContexts.get(pair).size())));
 
-        // Event logs stay on disk; VersionGraph.write streams them using these id translations.
-        List<EventExport.Source> eventSources = new ArrayList<>();
-        for (int runIndex = 0; runIndex < nRuns; runIndex++) {
-            for (EventLogRef log : runGraphs.get(runIndex).eventLogs) {
-                int[] nodeOf = new int[log.signatures.length];
-                for (int id = 0; id < nodeOf.length; id++) {
-                    nodeOf[id] = log.signatures[id] == null ? -1 : nodeIndex.getOrDefault(log.signatures[id], -1);
-                }
-                int[] contextOf = new int[log.contexts.length];
-                for (int id = 0; id < contextOf.length; id++) {
-                    contextOf[id] = contextIndex.getOrDefault(log.contexts[id], 0);
-                }
-                eventSources.add(new EventExport.Source(runIndex, log.jvm, log.file, nodeOf, contextOf, log.dump));
-            }
-        }
-
         // ---- header ----------------------------------------------------------------------------
         TreeMap<String, Integer> statusCounts = new TreeMap<>();
         for (Map<String, Object> c : contexts) {
@@ -402,7 +365,6 @@ final class GraphBuilder {
         stats.put("transform_failures", runGraphs.stream().mapToLong(g -> g.transformFailureCount).sum());
         stats.put("overflowed_edges", runGraphs.stream().mapToLong(g -> g.overflowedEdges).sum());
         stats.put("runs_without_tests", runTests.stream().filter(Map::isEmpty).count());
-        stats.put("call_events", 0L); // set when the event logs are written
 
         Map<String, Object> header = new LinkedHashMap<>();
         header.put("schema_version", 1);
@@ -415,7 +377,7 @@ final class GraphBuilder {
         header.put("stats", stats);
         List<List<String>> failures = runGraphs.isEmpty() ? List.of() : runGraphs.get(0).transformFailures;
         header.put("transform_failures", failures.subList(0, Math.min(MAX_TRANSFORM_FAILURES, failures.size())));
-        return new VersionGraph(header, nodes, contexts, edges, aggregate, eventSources);
+        return new VersionGraph(header, nodes, contexts, edges, aggregate);
     }
 
     private static int runsSeen(long[] counts) {

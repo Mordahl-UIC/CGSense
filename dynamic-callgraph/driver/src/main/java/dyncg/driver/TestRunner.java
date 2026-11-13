@@ -35,9 +35,6 @@ final class TestRunner {
         parts.add("include=" + String.join(":", options.includes));
         parts.add("out=" + dumpsDir);
         parts.add("flush=" + options.flushSeconds);
-        if (options.maxEvents > 0) {
-            parts.add("events=" + options.maxEvents);
-        }
         if (!options.excludes.isEmpty()) {
             parts.add("exclude=" + String.join(":", options.excludes));
         }

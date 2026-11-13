@@ -37,21 +37,4 @@ final class AgentDump {
 
     /** Rows of [context, caller, callee, count]. */
     public long[][] edges = new long[0][];
-
-    /** Binary event log next to this dump (see the agent's EventLog); null when not recorded. */
-    @JsonProperty("events_file")
-    public String eventsFile;
-
-    @JsonProperty("events_max")
-    public long eventsMax;
-
-    /** Sequence numbers handed out when the dump was written (events that should be in the file). */
-    @JsonProperty("events_recorded")
-    public long eventsRecorded;
-
-    @JsonProperty("events_limit_reached")
-    public boolean eventsLimitReached;
-
-    @JsonProperty("events_error")
-    public String eventsError;
 }

@@ -18,7 +18,39 @@ import org.objectweb.asm.Opcodes;
  * Decides whether a method annotation marks a test or a fixture, including composed annotations
  * such as {@code @MultiLocaleTest}, which are themselves annotated with {@code @ParameterizedTest}.
  * Annotation types are read from class-file resources, never loaded.
+ *
  */
+//An annotation is a label you attach to a piece of Java code (a class, method, field or parameter). It starts with @. On its own it doesn't change what the code does. It's extra information that other tools, or Java itself, can read and act on.
+//A fixture method is a method that prepares things before tests or cleans up after them. It isn't a test itself; it sets the stage so tests can run.
+
+/*TestAnnotations decides whether a method annotation means test, fixture or neither. It first checks a list of known JUnit and TestNG annotations.
+ For custom annotations, it reads their class files (without loading them) and follows their meta-annotations up to 4 levels deep, guarding against cycles, preferring "test" over "fixture", and caching each answer.*/
+
+/*
+ * Who uses TestAnnotations, and when:
+ *
+ *   Caller                                    What it uses                          When
+ *   ----------------------------------------  ------------------------------------  -----------------------------------------
+ *   CallGraphTransformer.java                 new TestAnnotations()                 Once, when the transformer is created at
+ *                                                                                     JVM startup
+ *   MethodInstrumenter.java (visitAnnotation) annotations.kind(descriptor, loader), For each annotation on each instrumented
+ *                                             TestAnnotations.NONE                    method, while its class is being rewritten
+ */
+
+/*
+ * Why three kinds of methods (testKind)?
+ *
+ *   0 = normal  -> enter/exit          : records WHO called WHOM (the edges)
+ *   1 = test    -> enterTest/exitTest  : opens a test context, so every call is linked
+ *                                        to the test that caused it (and its pass/fail)
+ *   2 = fixture -> enterTest/exitTest  : opens a fixture context for set-up/clean-up
+ *                                        (@BeforeEach, setUp, ...), so those calls are
+ *                                        not "unattributed" and not counted as tests
+ *
+ * If all were treated the same, the edges and the diff would stay the same,
+ * but we would lose which test made each call.
+ */
+
 final class TestAnnotations {
     static final int NONE = 0;
 

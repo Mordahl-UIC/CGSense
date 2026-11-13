@@ -59,17 +59,14 @@ final class VersionGraph {
     final List<Map<String, Object>> contexts;
     final List<EdgeRow> edges;
     final List<AggregateRow> aggregateEdges;
-    /** Event logs to export; empty when events were not recorded. */
-    final List<EventExport.Source> eventSources;
 
     VersionGraph(Map<String, Object> header, List<Map<String, Object>> nodes, List<Map<String, Object>> contexts,
-            List<EdgeRow> edges, List<AggregateRow> aggregateEdges, List<EventExport.Source> eventSources) {
+            List<EdgeRow> edges, List<AggregateRow> aggregateEdges) {
         this.header = header;
         this.nodes = nodes;
         this.contexts = contexts;
         this.edges = edges;
         this.aggregateEdges = aggregateEdges;
-        this.eventSources = eventSources;
     }
 
     @SuppressWarnings("unchecked")
@@ -79,12 +76,6 @@ final class VersionGraph {
 
     Path write(Path outDir) throws IOException {
         Files.createDirectories(outDir);
-        Map<String, Object> callEvents = null;
-        Files.deleteIfExists(outDir.resolve(EventExport.FILE));
-        if (!eventSources.isEmpty()) {
-            callEvents = EventExport.write(eventSources, outDir);
-            stats().put("call_events", callEvents.get("rows"));
-        }
         Path path = outDir.resolve("callgraph.json");
         try (OutputStream out = new BufferedOutputStream(Files.newOutputStream(path), 1 << 16);
                 JsonGenerator g = Json.MAPPER.getFactory().createGenerator(out)) {
@@ -119,8 +110,6 @@ final class VersionGraph {
                 g.writeEndArray();
             }
             g.writeEndArray();
-            // Individual invocations are in a separate file; this is its summary (null when not recorded).
-            g.writeObjectField("call_events", callEvents);
             g.writeEndObject();
             g.flush();
             out.write('\n');

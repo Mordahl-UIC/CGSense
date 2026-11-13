@@ -19,15 +19,13 @@ final class TestRunOptions {
     final Integer timeoutSeconds;
     final boolean offline;
     final int flushSeconds;
-    /** Maximum individual invocations logged per test JVM; 0 = event log off. */
-    final long maxEvents;
     final String mvn;
     final String gradle;
     final BuildTool buildTool;
 
     TestRunOptions(Path agentJar, List<String> includes, List<String> excludes, Path javaHome, String tests,
             Integer testTimeoutSeconds, Integer timeoutSeconds, boolean offline,
-            int flushSeconds, long maxEvents, String mvn, String gradle,
+            int flushSeconds, String mvn, String gradle,
             BuildTool buildTool) {
         this.agentJar = agentJar;
         this.includes = List.copyOf(includes);
@@ -38,7 +36,6 @@ final class TestRunOptions {
         this.timeoutSeconds = timeoutSeconds;
         this.offline = offline;
         this.flushSeconds = flushSeconds;
-        this.maxEvents = maxEvents;
         this.mvn = mvn;
         this.gradle = gradle;
         this.buildTool = buildTool;
@@ -46,17 +43,17 @@ final class TestRunOptions {
 
     TestRunOptions withIncludes(List<String> newIncludes) {
         return new TestRunOptions(agentJar, newIncludes, excludes, javaHome, tests, testTimeoutSeconds,
-                timeoutSeconds, offline, flushSeconds, maxEvents, mvn, gradle, buildTool);
+                timeoutSeconds, offline, flushSeconds, mvn, gradle, buildTool);
     }
 
     TestRunOptions withJavaHome(Path newJavaHome) {
         return new TestRunOptions(agentJar, includes, excludes, newJavaHome, tests, testTimeoutSeconds,
-                timeoutSeconds, offline, flushSeconds, maxEvents, mvn, gradle, buildTool);
+                timeoutSeconds, offline, flushSeconds, mvn, gradle, buildTool);
     }
 
     TestRunOptions withBuildTool(BuildTool newBuildTool) {
         return new TestRunOptions(agentJar, includes, excludes, javaHome, tests, testTimeoutSeconds,
-                timeoutSeconds, offline, flushSeconds, maxEvents, mvn, gradle, newBuildTool);
+                timeoutSeconds, offline, flushSeconds, mvn, gradle, newBuildTool);
     }
 
     /**

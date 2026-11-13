@@ -178,7 +178,6 @@ One `version` invocation writes:
 <out>/
   callgraph.json
   summary.json
-  call_events.tsv.gz              # only with --record-events
   runs/
     0/
       build.log
@@ -198,7 +197,6 @@ One `version` invocation writes:
 - `runs`: commands, exit status, duration, dump details, and test-report counts.
 - `stats`: node, edge, test, instrumentation, and stability summaries.
 - `transform_failures`: a bounded sample of classes the agent could not transform.
-- `call_events`: event-file metadata when event recording is enabled; otherwise `null`.
 
 An aggregate edge is stable when `runs_seen` equals the number of requested runs.
 

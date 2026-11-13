@@ -62,7 +62,7 @@ public final class Main {
             return printHelp(command);
         }
         try {
-            // No abbreviations: "--max" must not silently mean "--max-events".
+            // No abbreviations: "--rep" must not silently mean "--repeats".
             CommandLine cl = DefaultParser.builder().setAllowPartialMatching(false).get()
                     .parse(command.options(), rest);
             if (!cl.getArgList().isEmpty()) {

@@ -22,8 +22,6 @@ final class RunOptions {
     boolean offline;
     String buildTool;
     int flush;
-    boolean recordEvents;
-    long maxEvents;
     Path agentJar;
     String mvn;
     String gradle;
@@ -42,9 +40,6 @@ final class RunOptions {
                 .addOption(value("timeout", "seconds", "seconds per build invocation"))
                 .addOption(value("build-tool", "tool", "auto, maven or gradle (default: auto)"))
                 .addOption(value("flush", "seconds", "agent snapshot interval in seconds (0 = only at exit)"))
-                .addOption(flag("record-events", "also log individual invocations in order (see --max-events)"))
-                .addOption(value("max-events", "n",
-                        "with --record-events: invocations logged per test JVM before logging stops (default 5000000)"))
                 .addOption(value("agent-jar", "file", "default: <project root>/agent/target/dyncg-agent.jar"))
                 .addOption(value("mvn", "command", "Maven executable (default: mvn)"))
                 .addOption(value("gradle", "command", "Gradle executable when no gradlew exists (default: gradle)"));
@@ -62,8 +57,6 @@ final class RunOptions {
         run.offline = true;
         run.buildTool = cl.getOptionValue("build-tool", "auto");
         run.flush = intValue(cl, "flush", 60);
-        run.recordEvents = cl.hasOption("record-events");
-        run.maxEvents = longValue(cl, "max-events", 5000000L);
         run.agentJar = path(cl, "agent-jar");
         run.mvn = cl.getOptionValue("mvn", "mvn");
         run.gradle = cl.getOptionValue("gradle", "gradle");
@@ -78,11 +71,8 @@ final class RunOptions {
         if (repeats < 1) {
             throw new UsageException("--repeats must be at least 1");
         }
-        if (maxEvents < 1 || maxEvents > Integer.MAX_VALUE) {
-            throw new UsageException("--max-events must be between 1 and " + Integer.MAX_VALUE);
-        }
         return new TestRunOptions(agent, includeList, excludes, Main.abs(javaHome), tests, testTimeout, timeout,
-                offline, flush, recordEvents ? maxEvents : 0, mvn, gradle, BuildTool.parse(buildTool));
+                offline, flush, mvn, gradle, BuildTool.parse(buildTool));
     }
 
     // ---- option definitions and typed values, shared by all commands --------------------------
