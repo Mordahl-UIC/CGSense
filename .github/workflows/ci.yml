@@ -20,5 +20,14 @@ jobs:
           java-version: '21'
           cache: maven
 
+      # The end-to-end test builds the fixture projects with `mvn -o`, so their
+      # plugins and dependencies must already be in the local repository.
+      - name: Warm Maven cache for test fixtures
+        run: |
+          for p in src/test/fixture/version-pair/before src/test/fixture/version-pair/after; do
+            mvn -B -ntp -q -f "$p/pom.xml" test
+            rm -rf "$p/target"
+          done
+
       # Compiles, runs unit + end-to-end tests and runs spotless:check
       - run: mvn -B -ntp verify
