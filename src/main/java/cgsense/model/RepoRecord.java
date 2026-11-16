@@ -7,5 +7,4 @@ public record RepoRecord(
     String license,
     String buildSystem,
     int javaFileCount,
-    String entryPointKind) {
-}
+    String entryPointKind) {}

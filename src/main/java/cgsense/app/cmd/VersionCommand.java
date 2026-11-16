@@ -1,14 +1,12 @@
 package cgsense.app.cmd;
 
-import java.nio.file.Path;
-import java.util.List;
-
 import cgsense.tester.driver.FileUtil;
-import cgsense.tester.driver.VersionRunner;
 import cgsense.tester.driver.ProjectSources;
 import cgsense.tester.driver.RunOptions;
 import cgsense.tester.driver.UsageException;
-
+import cgsense.tester.driver.VersionRunner;
+import java.nio.file.Path;
+import java.util.List;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 
@@ -21,11 +19,13 @@ public final class VersionCommand implements CliCommand {
 
   @Override
   public Options options() {
-    return RunOptions.addTo(new Options()
-        .addOption(RunOptions.required("project-dir", "dir", "the checked-out project"))
-        .addOption(RunOptions.required("out", "dir", "output directory"))
-        .addOption(RunOptions.value("label", "name", "version label in the output (default: version)"))
-        .addOption(RunOptions.value("commit", "sha", "commit id recorded in the output")));
+    return RunOptions.addTo(
+        new Options()
+            .addOption(RunOptions.required("project-dir", "dir", "the checked-out project"))
+            .addOption(RunOptions.required("out", "dir", "output directory"))
+            .addOption(
+                RunOptions.value("label", "name", "version label in the output (default: version)"))
+            .addOption(RunOptions.value("commit", "sha", "commit id recorded in the output")));
   }
 
   @Override
@@ -37,8 +37,14 @@ public final class VersionCommand implements CliCommand {
     if (includes.isEmpty()) {
       throw new UsageException("could not detect project packages; pass --include");
     }
-    VersionRunner.run(cl.getOptionValue("label", "version"), cl.getOptionValue("commit"), project,
-        FileUtil.abs(RunOptions.path(cl, "out")), run.repeats, run.toOptions(includes), sources);
+    VersionRunner.run(
+        cl.getOptionValue("label", "version"),
+        cl.getOptionValue("commit"),
+        project,
+        FileUtil.abs(RunOptions.path(cl, "out")),
+        run.repeats,
+        run.toOptions(includes),
+        sources);
     return 0;
   }
 }

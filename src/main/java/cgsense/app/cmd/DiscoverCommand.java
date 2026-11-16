@@ -1,19 +1,16 @@
 package cgsense.app.cmd;
 
+import cgsense.discovery.GithubClientFactory;
+import cgsense.discovery.RepoCriteria;
+import cgsense.discovery.RepoDiscovery;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.File;
 import java.io.InputStream;
 import java.nio.file.Path;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
 import org.kohsuke.github.GitHub;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
-
-import cgsense.discovery.RepoCriteria;
-import cgsense.discovery.GithubClientFactory;
-import cgsense.discovery.RepoDiscovery;
 
 public class DiscoverCommand implements CliCommand {
   @Override
@@ -24,19 +21,9 @@ public class DiscoverCommand implements CliCommand {
   @Override
   public Options options() {
     return new Options()
-        .addOption(Option.builder()
-            .longOpt("limit")
-            .hasArg()
-            .get())
-        .addOption(Option.builder()
-            .longOpt("criteria")
-            .hasArg()
-            .get())
-        .addOption(Option.builder()
-            .longOpt("output")
-            .hasArg()
-            .required()
-            .get());
+        .addOption(Option.builder().longOpt("limit").hasArg().get())
+        .addOption(Option.builder().longOpt("criteria").hasArg().get())
+        .addOption(Option.builder().longOpt("output").hasArg().required().get());
   }
 
   private RepoCriteria getRepoCriteria(CommandLine cl) throws Exception {
@@ -45,7 +32,10 @@ public class DiscoverCommand implements CliCommand {
     if (cl.hasOption("criteria")) {
       criteria = mapper.readValue((File) cl.getParsedOptionValue("criteria"), RepoCriteria.class);
     } else {
-      try (InputStream is = DiscoverCommand.class.getClassLoader().getResourceAsStream("default-repo-criteria.json")) {
+      try (InputStream is =
+          DiscoverCommand.class
+              .getClassLoader()
+              .getResourceAsStream("default-repo-criteria.json")) {
         criteria = mapper.readValue(is, RepoCriteria.class);
       } catch (Exception e) {
         e.printStackTrace();

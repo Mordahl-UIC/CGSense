@@ -6,11 +6,10 @@ import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.JSRInlinerAdapter;
 
 /**
- * ClassInstrumenter reads each class's header (name, Java version, whether it's
- * a JUnit 3 test class).
- * Then, for each method that has real code and isn't a compiler-generated
- * forwarder, it registers the method with Recorder to get an id, and wraps it
- * in MethodInstrumenter to insert the recording calls. I
+ * ClassInstrumenter reads each class's header (name, Java version, whether it's a JUnit 3 test
+ * class). Then, for each method that has real code and isn't a compiler-generated forwarder, it
+ * registers the method with Recorder to get an id, and wraps it in MethodInstrumenter to insert the
+ * recording calls. I
  */
 // its called from CallGraphTransformer.java.
 final class ClassInstrumenter extends ClassVisitor {
@@ -25,7 +24,10 @@ final class ClassInstrumenter extends ClassVisitor {
   private boolean junit3TestCase;
   private int instrumented;
 
-  ClassInstrumenter(ClassVisitor next, ClassHierarchy hierarchy, TestAnnotations annotations,
+  ClassInstrumenter(
+      ClassVisitor next,
+      ClassHierarchy hierarchy,
+      TestAnnotations annotations,
       ClassLoader loader) {
     super(API, next);
     this.hierarchy = hierarchy;
@@ -38,18 +40,23 @@ final class ClassInstrumenter extends ClassVisitor {
   }
 
   @Override
-  public void visit(int version, int access, String name, String signature, String superName,
+  public void visit(
+      int version,
+      int access,
+      String name,
+      String signature,
+      String superName,
       String[] interfaces) {
     super.visit(version, access, name, signature, superName, interfaces);
     owner = name;
     majorVersion = version & 0xFFFF;
-    junit3TestCase = superName != null
-        && hierarchy.isSubclassOf(superName, "junit/framework/TestCase", loader);
+    junit3TestCase =
+        superName != null && hierarchy.isSubclassOf(superName, "junit/framework/TestCase", loader);
   }
 
   @Override
-  public MethodVisitor visitMethod(int access, String name, String descriptor, String signature,
-      String[] exceptions) {
+  public MethodVisitor visitMethod(
+      int access, String name, String descriptor, String signature, String[] exceptions) {
     MethodVisitor next = super.visitMethod(access, name, descriptor, signature, exceptions);
     if (next == null || (access & (Opcodes.ACC_ABSTRACT | Opcodes.ACC_NATIVE)) != 0) {
       return next;
@@ -63,8 +70,9 @@ final class ClassInstrumenter extends ClassVisitor {
     }
     int id = Recorder.registerMethod(owner, name, descriptor, access);
     instrumented++;
-    MethodVisitor instrumenter = new MethodInstrumenter(next, access, name, descriptor, owner, id,
-        junit3TestCase, annotations, loader);
+    MethodVisitor instrumenter =
+        new MethodInstrumenter(
+            next, access, name, descriptor, owner, id, junit3TestCase, annotations, loader);
     if (majorVersion < FIRST_VERSION_WITHOUT_JSR) {
       // Old class files may contain JSR/RET, which frame computation cannot handle.
       return new JSRInlinerAdapter(instrumenter, access, name, descriptor, signature, exceptions);

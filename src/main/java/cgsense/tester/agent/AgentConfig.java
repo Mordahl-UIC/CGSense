@@ -4,18 +4,23 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
-//It parses the option string from -javaagent:...=include=...,out=...,flush=... into the include and exclude prefixes, 
-// the output folder and the flush interval, rejecting bad input. Its matches() method then tells the agent whether a class should be instrumented.
-//So parse runs only once, outDir and flushSeconds are read whenever a dump is written, and matches runs for every loaded class. Nothing in driver/ uses AgentConfig. So its is called from
-//Agent.java, Recorder.java, Dumper.java, and CallGraphTransformer.java.
+// It parses the option string from -javaagent:...=include=...,out=...,flush=... into the include
+// and exclude prefixes,
+// the output folder and the flush interval, rejecting bad input. Its matches() method then tells
+// the agent whether a class should be instrumented.
+// So parse runs only once, outDir and flushSeconds are read whenever a dump is written, and matches
+// runs for every loaded class. Nothing in driver/ uses AgentConfig. So its is called from
+// Agent.java, Recorder.java, Dumper.java, and CallGraphTransformer.java.
 final class AgentConfig {
   /** Never instrumented, whatever the include list says. */
   private static final String[] ALWAYS_EXCLUDED = {
-      "java/", "javax/", "jdk/", "sun/", "com/sun/", "cgsense/",
+    "java/", "javax/", "jdk/", "sun/", "com/sun/", "cgsense/",
   };
 
-  final String[] includes; // package prefixes to instrument, the driver fills it if i don't, the user can
-                           // override it with -javaagent:dyncg-agent.jar=include=...
+  final String[]
+      includes; // package prefixes to instrument, the driver fills it if i don't, the user
+  // can
+  // override it with -javaagent:dyncg-agent.jar=include=...
   final String[] excludes; // prefixes to skip, even if included
   final File outDir; // where the Dumper writes the JSON files
   final long flushSeconds; // how often the Dumper writes (default 60 s)
@@ -70,15 +75,15 @@ final class AgentConfig {
     if (out == null) {
       throw new IllegalArgumentException("no out directory given");
     }
-    return new AgentConfig(includes.toArray(new String[0]), excludes.toArray(new String[0]),
-        new File(out), flush);
+    return new AgentConfig(
+        includes.toArray(new String[0]), excludes.toArray(new String[0]), new File(out), flush);
   }
 
   // It splits one option value into separate package prefixes and adds them to a
   // list. parse calls it for include=... and exclude=....
   private static void addPrefixes(List<String> target, String value) {
     for (String prefix : value.split(":")) {
-      prefix = prefix.trim().replace('.', '/');// remove spaces, and turn com.foo. into com/foo/
+      prefix = prefix.trim().replace('.', '/'); // remove spaces, and turn com.foo. into com/foo/
       if (!prefix.isEmpty()) {
         target.add(prefix);
       }
@@ -86,13 +91,10 @@ final class AgentConfig {
   }
 
   /**
-   * CallGraphTransformer calls this for every class the JVM loads, to decide
-   * whether that class should be instrumented. It checks three lists, in order:
-   * 1. starts with an ALWAYS_EXCLUDED prefix (java/, javax/, jdk/, sun/,
-   * com/sun/, dyncg/) → false
-   * 2. starts with a user exclude prefix → false
-   * 3. starts with a user include prefix → true
-   * 4. none of the above → false
+   * CallGraphTransformer calls this for every class the JVM loads, to decide whether that class
+   * should be instrumented. It checks three lists, in order: 1. starts with an ALWAYS_EXCLUDED
+   * prefix (java/, javax/, jdk/, sun/, com/sun/, dyncg/) → false 2. starts with a user exclude
+   * prefix → false 3. starts with a user include prefix → true 4. none of the above → false
    */
   boolean matches(String internalName) {
     for (String prefix : ALWAYS_EXCLUDED) {

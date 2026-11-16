@@ -1,22 +1,20 @@
 package cgsense.app;
 
-import java.io.IOException;
-import java.io.PrintStream;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.Map;
-
-import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.DefaultParser;
-import org.apache.commons.cli.ParseException;
-import org.apache.commons.cli.help.HelpFormatter;
-import org.apache.commons.cli.help.TextHelpAppendable;
-
 import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
 import cgsense.app.cmd.VersionCommand;
 import cgsense.tester.driver.UsageException;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.util.Arrays;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.DefaultParser;
+import org.apache.commons.cli.ParseException;
+import org.apache.commons.cli.help.HelpFormatter;
+import org.apache.commons.cli.help.TextHelpAppendable;
 
 public class Main {
   public static final String VERSION = "0.1.0";
@@ -39,8 +37,7 @@ public class Main {
   }
 
   /**
-   * Runs the command line and returns the exit code (0 = success, 2 = usage
-   * error, 1 = failure).
+   * Runs the command line and returns the exit code (0 = success, 2 = usage error, 1 = failure).
    */
   public static int execute(String... args) {
     if (args.length == 0) {
@@ -67,8 +64,11 @@ public class Main {
     }
     try {
       // No abbreviations: "--max" must not silently mean "--max-events".
-      CommandLine cl = DefaultParser.builder().setAllowPartialMatching(false).get()
-          .parse(command.options(), rest);
+      CommandLine cl =
+          DefaultParser.builder()
+              .setAllowPartialMatching(false)
+              .get()
+              .parse(command.options(), rest);
       if (!cl.getArgList().isEmpty()) {
         throw new UsageException("unexpected argument(s): " + String.join(" ", cl.getArgList()));
       }
@@ -95,7 +95,10 @@ public class Main {
 
   private static int printHelp(CliCommand cmd) {
     try {
-      HelpFormatter.builder().setShowSince(false).setHelpAppendable(new TextHelpAppendable(System.out)).get()
+      HelpFormatter.builder()
+          .setShowSince(false)
+          .setHelpAppendable(new TextHelpAppendable(System.out))
+          .get()
           .printHelp(cmd.name(), "", cmd.options(), "", true);
       return 0;
     } catch (IOException e) {

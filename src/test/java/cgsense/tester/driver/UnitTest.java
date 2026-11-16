@@ -4,23 +4,21 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
+import cgsense.app.Main;
+import cgsense.app.cmd.CliCommand;
+import cgsense.app.cmd.VersionCommand;
+import cgsense.tester.driver.SurefireReports.TestInvocation;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.ParseException;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-
-import cgsense.app.Main;
-import cgsense.app.cmd.CliCommand;
-import cgsense.app.cmd.VersionCommand;
-import cgsense.tester.driver.SurefireReports.TestInvocation;
 
 class UnitTest {
   @Test
@@ -40,26 +38,43 @@ class UnitTest {
 
   @Test
   void parsesReports(@TempDir Path dir) throws IOException {
-    Files.writeString(dir.resolve("TEST-a.Foo.xml"), "<?xml version=\"1.0\"?>\n"
-        + "<testsuite name=\"a.Foo\">\n"
-        + "  <testcase classname=\"a.Foo\" name=\"ok\" time=\"0.1\"/>\n"
-        + "  <testcase classname=\"a.Foo\" name=\"bad\"><failure type=\"java.lang.AssertionError\""
-        + " message=\"boom\">java.lang.AssertionError: boom\n\tat a.Foo.bad(Foo.java:3)</failure></testcase>\n"
-        + "  <testcase classname=\"a.Foo\" name=\"crash\"><error type=\"java.lang.NullPointerException\"/></testcase>\n"
-        + "  <testcase classname=\"a.Foo\" name=\"later\"><skipped/></testcase>\n"
-        + "  <testcase classname=\"a.Foo\" name=\"param(int)[1]\"/>\n"
-        + "</testsuite>\n");
+    Files.writeString(
+        dir.resolve("TEST-a.Foo.xml"),
+        "<?xml version=\"1.0\"?>\n"
+            + "<testsuite name=\"a.Foo\">\n"
+            + "  <testcase classname=\"a.Foo\" name=\"ok\" time=\"0.1\"/>\n"
+            + "  <testcase classname=\"a.Foo\" name=\"bad\"><failure type=\"java.lang.AssertionError\""
+            + " message=\"boom\">java.lang.AssertionError: boom\n\tat a.Foo.bad(Foo.java:3)</failure></testcase>\n"
+            + "  <testcase classname=\"a.Foo\" name=\"crash\"><error type=\"java.lang.NullPointerException\"/></testcase>\n"
+            + "  <testcase classname=\"a.Foo\" name=\"later\"><skipped/></testcase>\n"
+            + "  <testcase classname=\"a.Foo\" name=\"param(int)[1]\"/>\n"
+            + "</testsuite>\n");
     Files.writeString(dir.resolve("TEST-broken.xml"), "<testsuite");
     List<TestInvocation> parsed = SurefireReports.parse(List.of(dir));
-    Map<String, String> statuses = parsed.stream()
-        .collect(Collectors.toMap(i -> i.reportedName, i -> i.status));
-    assertEquals(Map.of("ok", "passed", "bad", "failed", "crash", "error", "later", "skipped",
-        "param(int)[1]", "passed"), statuses);
-    TestInvocation bad = parsed.stream().filter(i -> i.reportedName.equals("bad")).findFirst().orElseThrow();
+    Map<String, String> statuses =
+        parsed.stream().collect(Collectors.toMap(i -> i.reportedName, i -> i.status));
+    assertEquals(
+        Map.of(
+            "ok",
+            "passed",
+            "bad",
+            "failed",
+            "crash",
+            "error",
+            "later",
+            "skipped",
+            "param(int)[1]",
+            "passed"),
+        statuses);
+    TestInvocation bad =
+        parsed.stream().filter(i -> i.reportedName.equals("bad")).findFirst().orElseThrow();
     assertEquals("a.Foo#bad", bad.testId);
     assertEquals("boom", bad.failure.get("message"));
-    assertEquals(List.of("java.lang.AssertionError: boom", "\tat a.Foo.bad(Foo.java:3)"), bad.failure.get("trace"));
-    TestInvocation crash = parsed.stream().filter(i -> i.reportedName.equals("crash")).findFirst().orElseThrow();
+    assertEquals(
+        List.of("java.lang.AssertionError: boom", "\tat a.Foo.bad(Foo.java:3)"),
+        bad.failure.get("trace"));
+    TestInvocation crash =
+        parsed.stream().filter(i -> i.reportedName.equals("crash")).findFirst().orElseThrow();
     assertNull(crash.failure.get("message"));
     assertEquals(List.of(), crash.failure.get("trace"));
     assertEquals("a.Foo#param", parsed.get(4).testId);
@@ -75,8 +90,10 @@ class UnitTest {
 
   @Test
   void detectsIncludePrefixes() {
-    assertEquals(List.of("org/jsoup/"), sources("org.jsoup.A", "org.jsoup.nodes.B").detectIncludePrefixes());
-    assertEquals(List.of("org/a/", "org/b/"), sources("org.a.X", "org.b.Y").detectIncludePrefixes());
+    assertEquals(
+        List.of("org/jsoup/"), sources("org.jsoup.A", "org.jsoup.nodes.B").detectIncludePrefixes());
+    assertEquals(
+        List.of("org/a/", "org/b/"), sources("org.a.X", "org.b.Y").detectIncludePrefixes());
     assertEquals(List.of("sample/"), sources("sample.A", "sample.B").detectIncludePrefixes());
     assertEquals(List.of("com/x/y/", "Foo"), sources("Foo", "com.x.y.Z").detectIncludePrefixes());
     assertEquals(List.of(), sources().detectIncludePrefixes());
@@ -105,17 +122,34 @@ class UnitTest {
 
   @Test
   void jvmRoles() {
-    assertEquals("test-jvm", GraphBuilder.jvmRole("/x/target/surefire/surefirebooter123.jar /x/target/surefire 2026"));
-    assertEquals("maven", GraphBuilder.jvmRole("org.codehaus.plexus.classworlds.launcher.Launcher -B test"));
-    assertEquals("test-jvm",
-        GraphBuilder.jvmRole("worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 1'"));
-    assertEquals("gradle", GraphBuilder.jvmRole("org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.10"));
+    assertEquals(
+        "test-jvm",
+        GraphBuilder.jvmRole("/x/target/surefire/surefirebooter123.jar /x/target/surefire 2026"));
+    assertEquals(
+        "maven", GraphBuilder.jvmRole("org.codehaus.plexus.classworlds.launcher.Launcher -B test"));
+    assertEquals(
+        "test-jvm",
+        GraphBuilder.jvmRole(
+            "worker.org.gradle.process.internal.worker.GradleWorkerMain 'Gradle Test Executor 1'"));
+    assertEquals(
+        "gradle", GraphBuilder.jvmRole("org.gradle.launcher.daemon.bootstrap.GradleDaemon 8.10"));
     assertEquals("other", GraphBuilder.jvmRole("com.example.Server"));
   }
 
   private static TestRunOptions options(BuildTool tool, String tests) {
-    return new TestRunOptions(Path.of("agent.jar"), List.of("sample/"), List.of(), null, tests,
-        null, null, false, 60, "mvn", "gradle", tool);
+    return new TestRunOptions(
+        Path.of("agent.jar"),
+        List.of("sample/"),
+        List.of(),
+        null,
+        tests,
+        null,
+        null,
+        false,
+        60,
+        "mvn",
+        "gradle",
+        tool);
   }
 
   @Test
@@ -134,24 +168,41 @@ class UnitTest {
     Path wrapper = dir.resolve("gradlew");
     Files.writeString(wrapper, "#!/bin/sh\n");
     Path init = dir.resolve("init.gradle");
-    List<String> command = TestRunner.gradleCommand(dir, options(BuildTool.GRADLE, "FooTest,Bar*"), init);
-    assertEquals(List.of("sh", wrapper.toString(), "--no-daemon", "--init-script", init.toString(),
-        "-Dorg.gradle.configuration-cache=false", "-Dorg.gradle.unsafe.configuration-cache=false",
-        "--continue", "--no-build-cache",
-        "cleanTest", "test", "--tests", "FooTest",
-        "--tests", "Bar*"), command);
+    List<String> command =
+        TestRunner.gradleCommand(dir, options(BuildTool.GRADLE, "FooTest,Bar*"), init);
+    assertEquals(
+        List.of(
+            "sh",
+            wrapper.toString(),
+            "--no-daemon",
+            "--init-script",
+            init.toString(),
+            "-Dorg.gradle.configuration-cache=false",
+            "-Dorg.gradle.unsafe.configuration-cache=false",
+            "--continue",
+            "--no-build-cache",
+            "cleanTest",
+            "test",
+            "--tests",
+            "FooTest",
+            "--tests",
+            "Bar*"),
+        command);
   }
 
   @Test
   void parsesGradleListenerLog(@TempDir Path dir) throws IOException {
     Path log = dir.resolve("gradle-tests.jsonl");
-    Files.writeString(log, String.join("\n",
-        "{\"task\":\":test\",\"class\":\"a.FooTest\",\"method\":\"batches(Factory)\","
-            + "\"name\":\"[1] List DataLoader\",\"status\":\"passed\",\"failure\":null}",
-        "{\"task\":\":test\",\"class\":\"a.FooTest\",\"method\":\"plain()\",\"name\":\"plain()\","
-            + "\"status\":\"failed\",\"failure\":{\"kind\":\"failed\",\"type\":\"org.opentest4j.AssertionFailedError\","
-            + "\"message\":\"boom\",\"trace\":[\"x\"]}}",
-        ""));
+    Files.writeString(
+        log,
+        String.join(
+            "\n",
+            "{\"task\":\":test\",\"class\":\"a.FooTest\",\"method\":\"batches(Factory)\","
+                + "\"name\":\"[1] List DataLoader\",\"status\":\"passed\",\"failure\":null}",
+            "{\"task\":\":test\",\"class\":\"a.FooTest\",\"method\":\"plain()\",\"name\":\"plain()\","
+                + "\"status\":\"failed\",\"failure\":{\"kind\":\"failed\",\"type\":\"org.opentest4j.AssertionFailedError\","
+                + "\"message\":\"boom\",\"trace\":[\"x\"]}}",
+            ""));
     List<TestInvocation> parsed = SurefireReports.parseGradleTestLog(log);
     assertEquals(2, parsed.size());
     assertEquals("a.FooTest#batches", parsed.get(0).testId);
@@ -164,28 +215,40 @@ class UnitTest {
   @Test
   void findsGradleReports(@TempDir Path dir) throws IOException {
     Path unit = Files.createDirectories(dir.resolve("build/test-results/test"));
-    Path integration = Files.createDirectories(dir.resolve("sub/build/test-results/integrationTest"));
+    Path integration =
+        Files.createDirectories(dir.resolve("sub/build/test-results/integrationTest"));
     Files.writeString(unit.resolve("TEST-a.Unit.xml"), "<testsuite/>");
     Files.writeString(integration.resolve("TEST-a.Integration.xml"), "<testsuite/>");
-    assertEquals(List.of(unit, integration).stream().sorted().collect(Collectors.toList()),
+    assertEquals(
+        List.of(unit, integration).stream().sorted().collect(Collectors.toList()),
         SurefireReports.reportDirs(dir, BuildTool.GRADLE));
   }
 
   private static CommandLine parse(CliCommand command, String... args) throws ParseException {
-    return DefaultParser.builder().setAllowPartialMatching(false).get().parse(command.options(), args);
+    return DefaultParser.builder()
+        .setAllowPartialMatching(false)
+        .get()
+        .parse(command.options(), args);
   }
 
   @Test
   void parsesRepeatableOptionsAndDefaults() throws ParseException {
-    CommandLine cl = parse(
-        new VersionCommand(),
-        "--project-dir", "project",
-        "--out", "output",
-        "--label", "before",
-        "--commit", "abc123",
-        "--include", "org/x/",
-        "--include=org/y/",
-        "--repeats", "5");
+    CommandLine cl =
+        parse(
+            new VersionCommand(),
+            "--project-dir",
+            "project",
+            "--out",
+            "output",
+            "--label",
+            "before",
+            "--commit",
+            "abc123",
+            "--include",
+            "org/x/",
+            "--include=org/y/",
+            "--repeats",
+            "5");
 
     RunOptions run = RunOptions.from(cl);
 
@@ -203,7 +266,8 @@ class UnitTest {
 
   @Test
   void rejectsBadNumbers() throws ParseException {
-    CommandLine cl = parse(new VersionCommand(), "--project-dir", "p", "--out", "o", "--repeats", "two");
+    CommandLine cl =
+        parse(new VersionCommand(), "--project-dir", "p", "--out", "o", "--repeats", "two");
     UsageException error = assertThrows(UsageException.class, () -> RunOptions.from(cl));
     assertEquals("--repeats: not a number: 'two'", error.getMessage());
   }
@@ -226,37 +290,16 @@ class UnitTest {
     assertEquals(2, Main.execute("nope"));
 
     // --project-dir is required.
-    assertEquals(
-        2,
-        Main.execute(
-            "version",
-            "--out", "o"));
+    assertEquals(2, Main.execute("version", "--out", "o"));
 
     // Unknown options are rejected.
     assertEquals(
-        2,
-        Main.execute(
-            "version",
-            "--project-dir", "p",
-            "--out", "o",
-            "--no-such-option"));
+        2, Main.execute("version", "--project-dir", "p", "--out", "o", "--no-such-option"));
 
     // Partial option-name matching is disabled.
-    assertEquals(
-        2,
-        Main.execute(
-            "version",
-            "--project-dir", "p",
-            "--out", "o",
-            "--max", "3"));
+    assertEquals(2, Main.execute("version", "--project-dir", "p", "--out", "o", "--max", "3"));
 
     // Extra positional arguments are rejected.
-    assertEquals(
-        2,
-        Main.execute(
-            "version",
-            "--project-dir", "p",
-            "--out", "o",
-            "extra"));
+    assertEquals(2, Main.execute("version", "--project-dir", "p", "--out", "o", "extra"));
   }
 }

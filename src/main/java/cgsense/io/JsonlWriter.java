@@ -1,5 +1,6 @@
 package cgsense.io;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.Writer;
@@ -7,8 +8,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.OpenOption;
 import java.nio.file.Path;
-
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class JsonlWriter implements Closeable {
   private static final ObjectMapper MAPPER = new ObjectMapper().findAndRegisterModules();
@@ -31,5 +30,4 @@ public class JsonlWriter implements Closeable {
   public void close() throws IOException {
     out.close();
   }
-
 }

@@ -1,11 +1,9 @@
 package cgsense.discovery;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import java.io.IOException;
-
 import org.kohsuke.github.GitHub;
 import org.kohsuke.github.GitHubBuilder;
-
-import io.github.cdimascio.dotenv.Dotenv;
 
 /*
  quota: 5000 req/hr on fine-grained token
