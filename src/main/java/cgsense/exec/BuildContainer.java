@@ -9,26 +9,27 @@ public class BuildContainer implements AutoCloseable {
   private static final String IMAGE = "cgsense-build";
   private final String name;
 
-  private static final int[] JDKS = { 26, 25, 21, 17, 11, 8 };
+  private static final int[] JDKS = {26, 25, 21, 17, 11, 8};
   private int JDK_IDX = 0;
 
-  private static final String BUILD_SCRIPT = """
-          set -e
-          cd /work/repo
-          git checkout -q -f {sha}
-          git clean -q -ffdx
-          [ -x /opt/jdk/{jdk}/bin/java ] || { echo "cgsense: JDK {jdk} missing from image"; exit 127; }
-          echo "cgsense: building {sha} on JDK {jdk}"
-          export JAVA_HOME=/opt/jdk/{jdk} PATH=/opt/jdk/{jdk}/bin:$PATH
-          if [ -f gradlew ]; then
-            bash ./gradlew --no-daemon \\
-              -Porg.gradle.java.installations.paths=/opt/jdk/8,/opt/jdk/11,/opt/jdk/17,/opt/jdk/21 \\
-              testClasses
-          else
-            mvn -B test-compile
-          fi
+  private static final String BUILD_SCRIPT =
+      """
+                set -e
+                cd /work/repo
+                git checkout -q -f {sha}
+                git clean -q -ffdx
+                [ -x /opt/jdk/{jdk}/bin/java ] || { echo "cgsense: JDK {jdk} missing from image"; exit 127; }
+                echo "cgsense: building {sha} on JDK {jdk}"
+                export JAVA_HOME=/opt/jdk/{jdk} PATH=/opt/jdk/{jdk}/bin:$PATH
+                if [ -f gradlew ]; then
+                  bash ./gradlew --no-daemon \\
+                    -Porg.gradle.java.installations.paths=/opt/jdk/8,/opt/jdk/11,/opt/jdk/17,/opt/jdk/21 \\
+                    testClasses
+                else
+                  mvn -B test-compile
+                fi
 
-      """;
+            """;
 
   public BuildContainer(String remoteUrl, String slug) throws IOException {
     this.name = "cgsense-" + slug;
@@ -42,14 +43,13 @@ public class BuildContainer implements AutoCloseable {
     CommandResult cloneRes = sh("git clone -q " + remoteUrl + " /work/repo");
     if (cloneRes.exitCode() != 0) {
       close();
-      throw new IOException(String.format("git clone inside container for %s: %s", slug, cloneRes.output()));
+      throw new IOException(
+          String.format("git clone inside container for %s: %s", slug, cloneRes.output()));
     }
   }
 
   static String script(String sha, int jdk) {
-    return BUILD_SCRIPT
-        .replace("{sha}", sha)
-        .replace("{jdk}", Integer.toString(jdk));
+    return BUILD_SCRIPT.replace("{sha}", sha).replace("{jdk}", Integer.toString(jdk));
   }
 
   public int build(String sha) throws IOException {

@@ -1,18 +1,15 @@
 package cgsense.app.cmd;
 
-import org.apache.commons.cli.Options;
-
 import cgsense.io.JsonlReader;
 import cgsense.mining.CommitMiner;
 import cgsense.model.RepoRecord;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Scanner;
 import java.util.stream.Stream;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
+import org.apache.commons.cli.Options;
 
 public class CommitMinerCommand implements CliCommand {
   @Override
@@ -23,16 +20,8 @@ public class CommitMinerCommand implements CliCommand {
   @Override
   public Options options() {
     return new Options()
-        .addOption(Option.builder()
-            .longOpt("repos")
-            .hasArg()
-            .required()
-            .get())
-        .addOption(Option.builder()
-            .longOpt("output")
-            .hasArg()
-            .required()
-            .get());
+        .addOption(Option.builder().longOpt("repos").hasArg().required().get())
+        .addOption(Option.builder().longOpt("output").hasArg().required().get());
   }
 
   @Override
@@ -68,5 +57,4 @@ public class CommitMinerCommand implements CliCommand {
 
     return 0;
   }
-
 }

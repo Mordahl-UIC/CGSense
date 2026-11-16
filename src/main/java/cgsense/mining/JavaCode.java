@@ -17,8 +17,7 @@ public class JavaCode {
       if (Character.isWhitespace(c)) {
         i++;
       } else if (s.startsWith("//", i)) {
-        while (i < n && s.charAt(i) != '\n')
-          i++;
+        while (i < n && s.charAt(i) != '\n') i++;
       } else if (s.startsWith("/*", i)) {
         int end = s.indexOf("*/", i + 2);
         i = end < 0 ? n : end + 2;

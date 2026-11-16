@@ -10,24 +10,20 @@ import java.util.concurrent.atomic.LongAdder;
 /**
  * Runtime side of the agent, called from instrumented code.
  *
- * <p>Each thread keeps a shadow stack of method ids. On entry the edge (context, caller, callee)
- * is counted, where the caller is the top of the stack (0 = called from uninstrumented code) and
- * the context is the test or fixture method currently running on the thread (0 = none). Threads
- * inherit the context of the thread that created them.
+ * <p>Each thread keeps a shadow stack of method ids. On entry the edge (context, caller, callee) is
+ * counted, where the caller is the top of the stack (0 = called from uninstrumented code) and the
+ * context is the test or fixture method currently running on the thread (0 = none). Threads inherit
+ * the context of the thread that created them.
  *
  * <p>None of these methods may throw: a failure here would change the behaviour of the tests.
  */
 /**
- * Recorder is the agent's runtime memory. While the tests run, every
- * instrumented method calls it on entry and exit. It keeps a per-thread "shadow
- * stack" of the methods
- * currently running, knows which test is running, and counts every (test,
- * caller, callee) edge. Dumper reads a snapshot of all this to write the JSON
- * file.
- * The file has five parts: the data tables, the methods called from
- * instrumented code, the methods called by the transformer, the internals
- * (counting and contexts),
- * and the snapshot for Dumper.
+ * Recorder is the agent's runtime memory. While the tests run, every instrumented method calls it
+ * on entry and exit. It keeps a per-thread "shadow stack" of the methods currently running, knows
+ * which test is running, and counts every (test, caller, callee) edge. Dumper reads a snapshot of
+ * all this to write the JSON file. The file has five parts: the data tables, the methods called
+ * from instrumented code, the methods called by the transformer, the internals (counting and
+ * contexts), and the snapshot for Dumper.
  */
 
 /*
@@ -57,78 +53,88 @@ public final class Recorder {
   private static final int CONTEXT_BITS = 20;
   private static final long METHOD_MASK = (1L << METHOD_BITS) - 1;
 
-  /**
-   * Method table; index 0 is the synthetic root ("called from uninstrumented
-   * code").
-   */
-  private static final List<String[]> METHODS = new ArrayList<String[]>(); // each entry is {owner, name, descriptor}
-  private static final List<Integer> METHOD_ACCESS = new ArrayList<Integer>();// the access flags for each method, same
-                                                                              // index as METHODS
+  /** Method table; index 0 is the synthetic root ("called from uninstrumented code"). */
+  private static final List<String[]> METHODS =
+      new ArrayList<String[]>(); // each entry is {owner, name, descriptor}
+
+  private static final List<Integer> METHOD_ACCESS =
+      new ArrayList<Integer>(); // the access flags for each method, same
+
+  // index as METHODS
 
   /** Context table; index 0 means "no test or fixture is running". */
-  private static final List<String[]> CONTEXTS = new ArrayList<String[]>(); // each entry is {runtimeClass, methodName,
-                                                                            // kind}, where kind is one of the
-                                                                            // Recorder.KIND_* constants
-  private static final ConcurrentHashMap<String, Integer> CONTEXT_IDS = new ConcurrentHashMap<String, Integer>();// maps
-                                                                                                                 // "kind:runtimeClass#methodName"
-                                                                                                                 // to
-                                                                                                                 // the
-                                                                                                                 // context
-                                                                                                                 // id,
-                                                                                                                 // same
-                                                                                                                 // index
-                                                                                                                 // as
-                                                                                                                 // CONTEXTS
+  private static final List<String[]> CONTEXTS =
+      new ArrayList<String[]>(); // each entry is {runtimeClass, methodName,
 
-  private static final ConcurrentHashMap<Long, LongAdder> EDGES = new ConcurrentHashMap<Long, LongAdder>();// maps
-                                                                                                           // (context,
-                                                                                                           // caller,
-                                                                                                           // callee) to
-                                                                                                           // the number
-                                                                                                           // of times
-                                                                                                           // that edge
-                                                                                                           // was taken
-  private static final AtomicLong OVERFLOWED_EDGES = new AtomicLong(); // the number of times an edge was skipped
-                                                                       // because context, caller or callee was too
-                                                                       // large to fit in the edge key
-  private static final AtomicInteger CLASSES_INSTRUMENTED = new AtomicInteger(); // the number of classes that were
-                                                                                 // successfully instrumented
-  private static final List<String[]> TRANSFORM_FAILURES = new ArrayList<String[]>(); // each entry is {className,
-                                                                                      // error}, for the first few
-                                                                                      // classes that failed to
-                                                                                      // transform
-  private static final int MAX_REPORTED_FAILURES = 200; // don't waste too much memory on failures, the rest are just
-                                                        // counted
-  private static final AtomicInteger TRANSFORM_FAILURE_COUNT = new AtomicInteger(); // the total number of classes that
-                                                                                    // failed to transform, including
-                                                                                    // those not reported in
-                                                                                    // TRANSFORM_FAILURES
+  // kind}, where kind is one of the
+  // Recorder.KIND_* constants
+  private static final ConcurrentHashMap<String, Integer> CONTEXT_IDS =
+      new ConcurrentHashMap<String, Integer>(); // maps
+  // "kind:runtimeClass#methodName"
+  // to
+  // the
+  // context
+  // id,
+  // same
+  // index
+  // as
+  // CONTEXTS
+
+  private static final ConcurrentHashMap<Long, LongAdder> EDGES =
+      new ConcurrentHashMap<Long, LongAdder>(); // maps
+  // (context,
+  // caller,
+  // callee) to
+  // the number
+  // of times
+  // that edge
+  // was taken
+  private static final AtomicLong OVERFLOWED_EDGES =
+      new AtomicLong(); // the number of times an edge was skipped
+  // because context, caller or callee was too
+  // large to fit in the edge key
+  private static final AtomicInteger CLASSES_INSTRUMENTED =
+      new AtomicInteger(); // the number of classes that were
+  // successfully instrumented
+  private static final List<String[]> TRANSFORM_FAILURES =
+      new ArrayList<String[]>(); // each entry is {className,
+  // error}, for the first few
+  // classes that failed to
+  // transform
+  private static final int MAX_REPORTED_FAILURES =
+      200; // don't waste too much memory on failures, the rest are just
+  // counted
+  private static final AtomicInteger TRANSFORM_FAILURE_COUNT =
+      new AtomicInteger(); // the total number of classes that
+  // failed to transform, including
+  // those not reported in
+  // TRANSFORM_FAILURES
 
   // Each thread has its own shadow stack, and inherits the context of the thread
   // that created it. The context is the id of the test or fixture method
   // currently running on this thread, or 0 if none.
-  private static final InheritableThreadLocal<ThreadState> STATE = new InheritableThreadLocal<ThreadState>() {
-    @Override
-    protected ThreadState initialValue() {
-      return new ThreadState(0);
-    }
+  private static final InheritableThreadLocal<ThreadState> STATE =
+      new InheritableThreadLocal<ThreadState>() {
+        @Override
+        protected ThreadState initialValue() {
+          return new ThreadState(0);
+        }
 
-    @Override
-    protected ThreadState childValue(ThreadState parent) {
-      return new ThreadState(parent == null ? 0 : parent.context);
-    }
-  };
+        @Override
+        protected ThreadState childValue(ThreadState parent) {
+          return new ThreadState(parent == null ? 0 : parent.context);
+        }
+      };
 
   // This runs once, when the class is first used. It reserves id 0 in both
   // tables, so real methods and tests start at 1.
   static {
-    METHODS.add(new String[] { "<root>", "<root>", "" });
+    METHODS.add(new String[] {"<root>", "<root>", ""});
     METHOD_ACCESS.add(0);
-    CONTEXTS.add(new String[] { "", "", "0" });
+    CONTEXTS.add(new String[] {"", "", "0"});
   }
 
-  private Recorder() {
-  }
+  private Recorder() {}
 
   // Called once, from Agent.premain, to start the dumper thread that writes the
   // call graph to disk at the end of the test run.
@@ -196,7 +202,7 @@ public final class Recorder {
   // two threads loading classes at the same time don't get the same id.
   static int registerMethod(String owner, String name, String descriptor, int access) {
     synchronized (METHODS) {
-      METHODS.add(new String[] { owner, name, descriptor });
+      METHODS.add(new String[] {owner, name, descriptor});
       METHOD_ACCESS.add(access);
       return METHODS.size() - 1;
     }
@@ -215,7 +221,7 @@ public final class Recorder {
     TRANSFORM_FAILURE_COUNT.incrementAndGet();
     synchronized (TRANSFORM_FAILURES) {
       if (TRANSFORM_FAILURES.size() < MAX_REPORTED_FAILURES) {
-        TRANSFORM_FAILURES.add(new String[] { className, String.valueOf(error) });
+        TRANSFORM_FAILURES.add(new String[] {className, String.valueOf(error)});
       }
     }
   }
@@ -267,7 +273,7 @@ public final class Recorder {
     synchronized (CONTEXTS) {
       id = CONTEXT_IDS.get(key);
       if (id == null) {
-        CONTEXTS.add(new String[] { runtimeClass, methodName, Integer.toString(kind) });
+        CONTEXTS.add(new String[] {runtimeClass, methodName, Integer.toString(kind)});
         id = CONTEXTS.size() - 1;
         CONTEXT_IDS.put(key, id);
       }
@@ -340,12 +346,16 @@ public final class Recorder {
   /** Per-thread shadow stack. Only its own thread touches it. */
   private static final class ThreadState {
     int[] frames = new int[64];
+
     /** Context to restore when the frame at the same index is popped. */
     int[] savedContext = new int[64];
+
     int depth;
     int context;
+
     /** Stack indices of the test/fixture frames currently open on this thread. */
     int[] testFrames = new int[4];
+
     int openTests;
 
     ThreadState(int context) {
@@ -383,11 +393,9 @@ public final class Recorder {
     }
 
     /**
-     * Pops back to the test frame itself, discarding any frames left above it. This
-     * bounds
-     * the damage of an unbalanced stack (for example after a StackOverflowError
-     * inside the
-     * recorder) to the test in which it happened.
+     * Pops back to the test frame itself, discarding any frames left above it. This bounds the
+     * damage of an unbalanced stack (for example after a StackOverflowError inside the recorder) to
+     * the test in which it happened.
      */
     void popTest() {
       if (openTests == 0) {

@@ -1,5 +1,6 @@
 package cgsense.tester.driver;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -10,26 +11,21 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
 
-import com.fasterxml.jackson.databind.JsonNode;
-
 /**
  * Compares the aggregate edges of two callgraph.json files.
  *
- * This tool does not run tests or generate call graphs. It only compares
- * call graphs that were generated previously by dyncg version.
+ * <p>This tool does not run tests or generate call graphs. It only compares call graphs that were
+ * generated previously by dyncg version.
  */
-
 public final class CallGraphDiffMain {
 
-  private CallGraphDiffMain() {
-  }
+  private CallGraphDiffMain() {}
 
   /**
-   * An edge identified by stable method signatures rather than the numeric
-   * node IDs stored in an individual callgraph.json file.
+   * An edge identified by stable method signatures rather than the numeric node IDs stored in an
+   * individual callgraph.json file.
    */
-  private record Edge(String caller, String callee)
-      implements Comparable<Edge> {
+  private record Edge(String caller, String callee) implements Comparable<Edge> {
 
     @Override
     public int compareTo(Edge other) {
@@ -43,21 +39,14 @@ public final class CallGraphDiffMain {
     }
   }
 
-  public static Map<String, Object> buildDiff(
-      Path beforePath,
-      Path afterPath)
-      throws IOException {
+  public static Map<String, Object> buildDiff(Path beforePath, Path afterPath) throws IOException {
 
     JsonNode beforeGraph = readGraph(beforePath);
     JsonNode afterGraph = readGraph(afterPath);
 
-    Set<Edge> beforeEdges = loadAggregateEdges(
-        beforeGraph,
-        beforePath);
+    Set<Edge> beforeEdges = loadAggregateEdges(beforeGraph, beforePath);
 
-    Set<Edge> afterEdges = loadAggregateEdges(
-        afterGraph,
-        afterPath);
+    Set<Edge> afterEdges = loadAggregateEdges(afterGraph, afterPath);
 
     TreeSet<Edge> addedEdges = new TreeSet<>(afterEdges);
     addedEdges.removeAll(beforeEdges);
@@ -71,12 +60,8 @@ public final class CallGraphDiffMain {
     Map<String, Object> output = new LinkedHashMap<>();
 
     output.put("schema_version", 1);
-    output.put(
-        "before",
-        graphDescription(beforePath, beforeGraph));
-    output.put(
-        "after",
-        graphDescription(afterPath, afterGraph));
+    output.put("before", graphDescription(beforePath, beforeGraph));
+    output.put("after", graphDescription(afterPath, afterGraph));
 
     Map<String, Object> stats = new LinkedHashMap<>();
     stats.put("before_edges", beforeEdges.size());
@@ -92,39 +77,30 @@ public final class CallGraphDiffMain {
     return output;
   }
 
-  private static JsonNode readGraph(Path path)
-      throws IOException {
+  private static JsonNode readGraph(Path path) throws IOException {
 
     if (!Files.isRegularFile(path)) {
-      throw new IOException(
-          "call graph does not exist: " + path);
+      throw new IOException("call graph does not exist: " + path);
     }
 
     JsonNode graph = Json.MAPPER.readTree(path.toFile());
 
     if (graph == null || !graph.isObject()) {
-      throw new IOException(
-          "call graph root must be a JSON object: " + path);
+      throw new IOException("call graph root must be a JSON object: " + path);
     }
 
     if (!graph.path("nodes").isArray()) {
-      throw new IOException(
-          "call graph has no nodes array: " + path);
+      throw new IOException("call graph has no nodes array: " + path);
     }
 
     if (!graph.path("aggregate_edges").isArray()) {
-      throw new IOException(
-          "call graph has no aggregate_edges array: "
-              + path);
+      throw new IOException("call graph has no aggregate_edges array: " + path);
     }
 
     return graph;
   }
 
-  private static Set<Edge> loadAggregateEdges(
-      JsonNode graph,
-      Path path)
-      throws IOException {
+  private static Set<Edge> loadAggregateEdges(JsonNode graph, Path path) throws IOException {
 
     Map<Integer, String> signatures = new LinkedHashMap<>();
 
@@ -132,28 +108,18 @@ public final class CallGraphDiffMain {
       JsonNode id = node.get("id");
       JsonNode signature = node.get("signature");
 
-      if (id == null
-          || !id.canConvertToInt()
-          || signature == null
-          || !signature.isTextual()) {
-        throw new IOException(
-            "invalid node in " + path + ": " + node);
+      if (id == null || !id.canConvertToInt() || signature == null || !signature.isTextual()) {
+        throw new IOException("invalid node in " + path + ": " + node);
       }
 
-      signatures.put(
-          id.asInt(),
-          signature.asText());
+      signatures.put(id.asInt(), signature.asText());
     }
 
     TreeSet<Edge> edges = new TreeSet<>();
 
     for (JsonNode row : graph.path("aggregate_edges")) {
       if (!row.isArray() || row.size() < 2) {
-        throw new IOException(
-            "invalid aggregate edge in "
-                + path
-                + ": "
-                + row);
+        throw new IOException("invalid aggregate edge in " + path + ": " + row);
       }
 
       int callerId = row.get(0).asInt();
@@ -164,11 +130,7 @@ public final class CallGraphDiffMain {
 
       if (caller == null || callee == null) {
         throw new IOException(
-            "aggregate edge references an unknown node "
-                + "in "
-                + path
-                + ": "
-                + row);
+            "aggregate edge references an unknown node " + "in " + path + ": " + row);
       }
 
       edges.add(new Edge(caller, callee));
@@ -177,19 +139,13 @@ public final class CallGraphDiffMain {
     return edges;
   }
 
-  private static Map<String, Object> graphDescription(
-      Path path,
-      JsonNode graph) {
+  private static Map<String, Object> graphDescription(Path path, JsonNode graph) {
 
     Map<String, Object> description = new LinkedHashMap<>();
 
     description.put("file", path.toString());
-    description.put(
-        "label",
-        textOrNull(graph.get("version_label")));
-    description.put(
-        "commit",
-        textOrNull(graph.get("commit")));
+    description.put("label", textOrNull(graph.get("version_label")));
+    description.put("commit", textOrNull(graph.get("commit")));
 
     return description;
   }
@@ -202,8 +158,7 @@ public final class CallGraphDiffMain {
     return value.asText();
   }
 
-  private static List<Map<String, String>> edgeObjects(
-      Set<Edge> edges) {
+  private static List<Map<String, String>> edgeObjects(Set<Edge> edges) {
 
     List<Map<String, String>> result = new ArrayList<>();
 

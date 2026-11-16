@@ -5,7 +5,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.List;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
@@ -29,20 +28,27 @@ public final class RunOptions {
   /** Adds the shared options to a command's options. */
   public static Options addTo(Options options) {
     return options
-        .addOption(value("include", "prefix",
-            "package prefix to instrument, e.g. org/jsoup/ (repeatable; default: detected)"))
+        .addOption(
+            value(
+                "include",
+                "prefix",
+                "package prefix to instrument, e.g. org/jsoup/ (repeatable; default: detected)"))
         .addOption(value("exclude", "prefix", "package prefix to skip (repeatable)"))
-        .addOption(value("tests", "patterns",
-            "test class/pattern selection, comma-separated"))
+        .addOption(value("tests", "patterns", "test class/pattern selection, comma-separated"))
         .addOption(value("repeats", "n", "test runs per version (default 2)"))
         .addOption(value("java-home", "dir", "JDK used to run the build and tests"))
-        .addOption(value("test-timeout", "seconds", "seconds per forked test JVM (surefire.timeout)"))
+        .addOption(
+            value("test-timeout", "seconds", "seconds per forked test JVM (surefire.timeout)"))
         .addOption(value("timeout", "seconds", "seconds per build invocation"))
         .addOption(value("build-tool", "tool", "auto, maven or gradle (default: auto)"))
-        .addOption(value("flush", "seconds", "agent snapshot interval in seconds (0 = only at exit)"))
-        .addOption(value("agent-jar", "file", "default: <project root>/agent/target/dyncg-agent.jar"))
+        .addOption(
+            value("flush", "seconds", "agent snapshot interval in seconds (0 = only at exit)"))
+        .addOption(
+            value("agent-jar", "file", "default: <project root>/agent/target/dyncg-agent.jar"))
         .addOption(value("mvn", "command", "Maven executable (default: mvn)"))
-        .addOption(value("gradle", "command", "Gradle executable when no gradlew exists (default: gradle)"));
+        .addOption(
+            value(
+                "gradle", "command", "Gradle executable when no gradlew exists (default: gradle)"));
   }
 
   public static RunOptions from(CommandLine cl) {
@@ -66,28 +72,43 @@ public final class RunOptions {
   public TestRunOptions toOptions(List<String> includeList) {
     Path agent = agentJar != null ? FileUtil.abs(agentJar) : TestRunOptions.defaultAgentJar();
     if (!Files.isRegularFile(agent)) {
-      throw new UsageException("agent jar not found: " + agent + " (build it with: mvn -B package)");
+      throw new UsageException(
+          "agent jar not found: " + agent + " (build it with: mvn -B package)");
     }
     if (repeats < 1) {
       throw new UsageException("--repeats must be at least 1");
     }
-    return new TestRunOptions(agent, includeList, excludes, FileUtil.abs(javaHome), tests, testTimeout, timeout,
-        offline, flush, mvn, gradle, BuildTool.parse(buildTool));
+    return new TestRunOptions(
+        agent,
+        includeList,
+        excludes,
+        FileUtil.abs(javaHome),
+        tests,
+        testTimeout,
+        timeout,
+        offline,
+        flush,
+        mvn,
+        gradle,
+        BuildTool.parse(buildTool));
   }
 
   // ---- option definitions and typed values, shared by all commands
   // --------------------------
 
-  /**
-   * An option that takes a value, given as {@code --name value} or
-   * {@code --name=value}.
-   */
+  /** An option that takes a value, given as {@code --name value} or {@code --name=value}. */
   public static Option value(String name, String argName, String description) {
     return Option.builder().longOpt(name).hasArg().argName(argName).desc(description).get();
   }
 
   public static Option required(String name, String argName, String description) {
-    return Option.builder().longOpt(name).hasArg().argName(argName).desc(description).required().get();
+    return Option.builder()
+        .longOpt(name)
+        .hasArg()
+        .argName(argName)
+        .desc(description)
+        .required()
+        .get();
   }
 
   static Option flag(String name, String description) {

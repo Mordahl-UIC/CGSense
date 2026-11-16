@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.Opcodes;
 
@@ -17,25 +16,27 @@ import org.objectweb.asm.Opcodes;
  * {@code java/lang/Object}, which is the conservative answer for frame computation.
  */
 
-//ClassHierarchy is a small, cached map from class name to (superclass, is-interface), built by reading .class files as bytes. 
-//It lets the agent find common parents for ASM's frame calculation and detect JUnit 3 test classes without loading any class while a class load is in progress. Whenever it doesn't know, it falls back to the safe answer, Object.
+// ClassHierarchy is a small, cached map from class name to (superclass, is-interface), built by
+// reading .class files as bytes.
+// It lets the agent find common parents for ASM's frame calculation and detect JUnit 3 test classes
+// without loading any class while a class load is in progress. Whenever it doesn't know, it falls
+// back to the safe answer, Object.
 
 /**
  * Three places use ClassHierarchy, all during class rewriting:
- * 
- * register (CallGraphTransformer.java:47) saves each project class's parent
- * when the class is transformed.
- * commonSuperClass (CallGraphTransformer.java:93) answers ASM's "closest common
- * parent" question while it rebuilds a rewritten class's frames.
- * isSubclassOf (ClassInstrumenter.java:40) checks whether a class extends JUnit
- * 3's TestCase, so the agent can spot old-style tests.
+ *
+ * <p>register (CallGraphTransformer.java:47) saves each project class's parent when the class is
+ * transformed. commonSuperClass (CallGraphTransformer.java:93) answers ASM's "closest common
+ * parent" question while it rebuilds a rewritten class's frames. isSubclassOf
+ * (ClassInstrumenter.java:40) checks whether a class extends JUnit 3's TestCase, so the agent can
+ * spot old-style tests.
  */
-
 final class ClassHierarchy {
   private static final String OBJECT = "java/lang/Object";
   private static final ClassInfo MISSING = new ClassInfo(null, false);
 
-  private final ConcurrentHashMap<String, ClassInfo> cache = new ConcurrentHashMap<String, ClassInfo>();
+  private final ConcurrentHashMap<String, ClassInfo> cache =
+      new ConcurrentHashMap<String, ClassInfo>();
 
   void register(ClassReader reader) {
     cache.put(reader.getClassName(), infoOf(reader));

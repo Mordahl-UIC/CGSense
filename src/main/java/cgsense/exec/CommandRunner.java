@@ -17,13 +17,13 @@ public class CommandRunner {
 
     ProcessBuilder pb = new ProcessBuilder(argv).redirectErrorStream(true);
 
-    if (dir != null)
-      pb.directory(dir.toFile());
+    if (dir != null) pb.directory(dir.toFile());
 
     Process p;
     try {
       p = pb.start();
-      String output = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).stripTrailing();
+      String output =
+          new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8).stripTrailing();
       int exit = p.waitFor();
       return new CommandResult(argv, exit, System.nanoTime() - start, output);
     } catch (IOException e) {

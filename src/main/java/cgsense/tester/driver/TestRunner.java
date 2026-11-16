@@ -17,18 +17,25 @@ import java.util.concurrent.TimeUnit;
 
 /** Running a project's tests under the agent. */
 final class TestRunner {
-  /**
-   * Plugins that are irrelevant to running tests and often break on historical
-   * commits.
-   */
-  static final List<String> SKIP_PROPERTIES = List.of(
-      "-Djacoco.skip=true", "-Dcheckstyle.skip=true", "-Denforcer.skip=true",
-      "-Danimal.sniffer.skip=true", "-Drat.skip=true", "-Dspotbugs.skip=true", "-Dpmd.skip=true",
-      "-Dlicense.skip=true", "-Dmaven.javadoc.skip=true", "-Djapicmp.skip=true", "-Dgpg.skip=true",
-      "-Dspotless.check.skip=true", "-Dmaven.source.skip=true", "-Dbuildnumber.skip=true");
+  /** Plugins that are irrelevant to running tests and often break on historical commits. */
+  static final List<String> SKIP_PROPERTIES =
+      List.of(
+          "-Djacoco.skip=true",
+          "-Dcheckstyle.skip=true",
+          "-Denforcer.skip=true",
+          "-Danimal.sniffer.skip=true",
+          "-Drat.skip=true",
+          "-Dspotbugs.skip=true",
+          "-Dpmd.skip=true",
+          "-Dlicense.skip=true",
+          "-Dmaven.javadoc.skip=true",
+          "-Djapicmp.skip=true",
+          "-Dgpg.skip=true",
+          "-Dspotless.check.skip=true",
+          "-Dmaven.source.skip=true",
+          "-Dbuildnumber.skip=true");
 
-  private TestRunner() {
-  }
+  private TestRunner() {}
 
   static String agentOption(TestRunOptions options, Path dumpsDir) {
     List<String> parts = new ArrayList<>();
@@ -46,11 +53,17 @@ final class TestRunner {
   }
 
   static List<String> mavenCommand(TestRunOptions options) {
-    List<String> command = new ArrayList<>(List.of(
-        options.mvn, "-B", "test",
-        "-Dmaven.test.failure.ignore=true", // keep running after failing tests
-        "-DfailIfNoTests=false", "-Dsurefire.failIfNoSpecifiedTests=false",
-        "-DtrimStackTrace=false"));
+    List<String> command =
+        new ArrayList<>(
+            List.of(
+                options.mvn,
+                "-B",
+                "test",
+                "-Dmaven.test.failure.ignore=true", // keep running after failing
+                // tests
+                "-DfailIfNoTests=false",
+                "-Dsurefire.failIfNoSpecifiedTests=false",
+                "-DtrimStackTrace=false"));
     command.addAll(SKIP_PROPERTIES);
     if (options.tests != null) {
       command.add("-Dtest=" + options.tests);
@@ -69,6 +82,7 @@ final class TestRunner {
    * test-listener.gradle).
    */
   static final String GRADLE_LISTENER = "dyncg-test-listener.gradle";
+
   /** Where that listener writes, one JSON object per test case. */
   static final String GRADLE_TEST_LOG = "gradle-tests.jsonl";
 
@@ -111,8 +125,9 @@ final class TestRunner {
       }
     }
     if (options.testTimeoutSeconds != null) {
-      throw new UsageException("--test-timeout is a Maven Surefire option and is not supported for Gradle; "
-          + "use --timeout for the whole Gradle invocation");
+      throw new UsageException(
+          "--test-timeout is a Maven Surefire option and is not supported for Gradle; "
+              + "use --timeout for the whole Gradle invocation");
     }
     if (options.offline) {
       command.add("--offline");
@@ -121,14 +136,12 @@ final class TestRunner {
   }
 
   static List<String> buildCommand(Path projectDir, TestRunOptions options, Path initScript) {
-    return options.buildTool == BuildTool.GRADLE ? gradleCommand(projectDir, options, initScript)
+    return options.buildTool == BuildTool.GRADLE
+        ? gradleCommand(projectDir, options, initScript)
         : mavenCommand(options);
   }
 
-  /**
-   * Runs the test suite once with the agent attached and collects its raw outputs
-   * in runDir.
-   */
+  /** Runs the test suite once with the agent attached and collects its raw outputs in runDir. */
   static RunResult runTests(Path projectDir, Path runDir, int index, TestRunOptions options)
       throws IOException, InterruptedException {
     Path dumpsDir = runDir.resolve("dumps");
@@ -146,12 +159,14 @@ final class TestRunner {
       testLog = runDir.resolve(GRADLE_TEST_LOG);
       Files.deleteIfExists(testLog);
       initScript = runDir.resolve(GRADLE_LISTENER);
-      try (InputStream in = TestRunner.class.getResourceAsStream("/cgsense/tester/test-listener.gradle")) {
+      try (InputStream in =
+          TestRunner.class.getResourceAsStream("/cgsense/tester/test-listener.gradle")) {
         Files.copy(in, initScript, StandardCopyOption.REPLACE_EXISTING);
       }
     }
     List<String> command = buildCommand(projectDir, options, initScript);
-    ProcessBuilder builder = new ProcessBuilder(command).directory(projectDir.toFile()).redirectErrorStream(true);
+    ProcessBuilder builder =
+        new ProcessBuilder(command).directory(projectDir.toFile()).redirectErrorStream(true);
     Map<String, String> env = builder.environment();
     if (testLog != null) {
       env.put("DYNCG_GRADLE_TEST_LOG", testLog.toString());
@@ -161,17 +176,28 @@ final class TestRunner {
     // in the pom (where -DargLine would be ignored). Non-test JVMs are filtered out
     // later.
     String existing = env.getOrDefault("JAVA_TOOL_OPTIONS", "");
-    String toolOptions = existing.isEmpty() ? agentOption(options, dumpsDir)
-        : existing + " " + agentOption(options, dumpsDir);
+    String toolOptions =
+        existing.isEmpty()
+            ? agentOption(options, dumpsDir)
+            : existing + " " + agentOption(options, dumpsDir);
     env.put("JAVA_TOOL_OPTIONS", toolOptions);
     if (options.javaHome != null) {
       env.put("JAVA_HOME", options.javaHome.toString());
-      env.put("PATH", options.javaHome.resolve("bin") + File.pathSeparator + env.getOrDefault("PATH", ""));
+      env.put(
+          "PATH",
+          options.javaHome.resolve("bin") + File.pathSeparator + env.getOrDefault("PATH", ""));
     }
 
     Path log = runDir.resolve("build.log");
-    Files.writeString(log, "$ cd " + projectDir + "\n$ JAVA_TOOL_OPTIONS='" + toolOptions + "' "
-        + String.join(" ", command) + "\n\n");
+    Files.writeString(
+        log,
+        "$ cd "
+            + projectDir
+            + "\n$ JAVA_TOOL_OPTIONS='"
+            + toolOptions
+            + "' "
+            + String.join(" ", command)
+            + "\n\n");
     builder.redirectOutput(ProcessBuilder.Redirect.appendTo(log.toFile()));
 
     long started = System.nanoTime();
@@ -198,8 +224,8 @@ final class TestRunner {
       FileUtil.copyTree(directory, destination);
       copied.add(destination);
     }
-    return new RunResult(index, runDir, command, exitCode, timedOut, duration, dumpFiles(dumpsDir), copied,
-        testLog);
+    return new RunResult(
+        index, runDir, command, exitCode, timedOut, duration, dumpFiles(dumpsDir), copied, testLog);
   }
 
   private static List<Path> dumpFiles(Path dumpsDir) throws IOException {

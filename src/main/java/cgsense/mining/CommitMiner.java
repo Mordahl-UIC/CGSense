@@ -1,5 +1,10 @@
 package cgsense.mining;
 
+import cgsense.exec.BuildContainer;
+import cgsense.io.JsonlWriter;
+import cgsense.model.ChangedFile;
+import cgsense.model.CommitPair;
+import cgsense.model.RepoRecord;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -9,7 +14,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
@@ -24,12 +28,6 @@ import org.eclipse.jgit.revwalk.RevWalk;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.treewalk.TreeWalk;
 import org.eclipse.jgit.util.io.DisabledOutputStream;
-
-import cgsense.exec.BuildContainer;
-import cgsense.io.JsonlWriter;
-import cgsense.model.CommitPair;
-import cgsense.model.RepoRecord;
-import cgsense.model.ChangedFile;
 
 /*
  * Criteria for choosing commits
@@ -51,12 +49,10 @@ public class CommitMiner {
     this.clonesDir = clonesDir;
     this.outputFile = outputFile;
     try {
-      if (overwrite)
-        Files.deleteIfExists(outputFile);
+      if (overwrite) Files.deleteIfExists(outputFile);
     } catch (Exception e) {
       System.err.println("Failed to delete existing output file.");
     }
-
   }
 
   public void mine(RepoRecord repo) {
@@ -83,13 +79,13 @@ public class CommitMiner {
       }
     }
 
-    try (
-        BuildContainer box = new BuildContainer(cloneUrl, slug);
+    try (BuildContainer box = new BuildContainer(cloneUrl, slug);
         Repository repo = new FileRepositoryBuilder().setGitDir(gitDir.toFile()).build();
         RevWalk walk = new RevWalk(repo);
         DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE);
-        JsonlWriter writer = JsonlWriter
-            .open(this.outputFile, StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
+        JsonlWriter writer =
+            JsonlWriter.open(
+                this.outputFile, StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
 
       ObjectId head = repo.resolve(Constants.HEAD);
       if (head == null) {
@@ -112,18 +108,16 @@ public class CommitMiner {
         Set<String> parentRootFiles = getRootFiles(repo, parent);
         boolean childHasBuildSystem = childRootFiles.stream().anyMatch(this::isBuildFile);
         boolean parentHasBuildSystem = parentRootFiles.stream().anyMatch(this::isBuildFile);
-        if (!childHasBuildSystem || !parentHasBuildSystem)
-          continue;
-        if (onlyCommentsOrFormatting(repo, diff, parent, child))
-          continue;
+        if (!childHasBuildSystem || !parentHasBuildSystem) continue;
+        if (onlyCommentsOrFormatting(repo, diff, parent, child)) continue;
 
         List<ChangedFile> files = changedFiles(diff, parent, child);
         if (select(files)) {
           int javaVersion = box.buildPair(parent.name(), child.name());
-          CommitPair pair = new CommitPair(fullRepoName, parent.name(), child.name(), javaVersion, files);
+          CommitPair pair =
+              new CommitPair(fullRepoName, parent.name(), child.name(), javaVersion, files);
           writer.write(pair);
-          if (++accepted >= MAX_PAIRS_PER_REPO)
-            break;
+          if (++accepted >= MAX_PAIRS_PER_REPO) break;
         }
       }
 
@@ -155,12 +149,11 @@ public class CommitMiner {
     return true;
   }
 
-  private boolean onlyCommentsOrFormatting(Repository repo, DiffFormatter diff,
-      RevCommit parent, RevCommit child) throws IOException {
+  private boolean onlyCommentsOrFormatting(
+      Repository repo, DiffFormatter diff, RevCommit parent, RevCommit child) throws IOException {
     for (DiffEntry e : diff.scan(parent, child)) {
       String path = e.getNewPath();
-      if (!isMainJava(path))
-        continue;
+      if (!isMainJava(path)) continue;
 
       String before = read(repo, e.getOldId());
       String after = read(repo, e.getNewId());
@@ -189,8 +182,7 @@ public class CommitMiner {
 
   private static String read(Repository repo, AbbreviatedObjectId id) throws IOException {
     ObjectId oid = id.toObjectId();
-    if (oid.equals(ObjectId.zeroId()))
-      return "";
+    if (oid.equals(ObjectId.zeroId())) return "";
     return new String(repo.open(oid, Constants.OBJ_BLOB).getBytes(), StandardCharsets.UTF_8);
   }
 
@@ -216,7 +208,6 @@ public class CommitMiner {
 
   private boolean isMainJava(String p) {
     return p.endsWith(".java") && !isTest(p) && !isGenerated(p);
-
   }
 
   private boolean isTest(String p) {
@@ -234,6 +225,5 @@ public class CommitMiner {
         || fileName.startsWith("build.gradle")
         || fileName.startsWith("settings.gradle")
         || fileName.equals("gradle.properties");
-
   }
 }

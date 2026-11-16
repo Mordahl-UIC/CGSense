@@ -12,10 +12,11 @@ import java.util.Arrays;
 import java.util.stream.Collectors;
 
 public class RawFileFetcher {
-  private final HttpClient http = HttpClient.newBuilder()
-      .followRedirects(HttpClient.Redirect.NORMAL)
-      .connectTimeout(Duration.ofSeconds(10))
-      .build();
+  private final HttpClient http =
+      HttpClient.newBuilder()
+          .followRedirects(HttpClient.Redirect.NORMAL)
+          .connectTimeout(Duration.ofSeconds(10))
+          .build();
 
   private final String owner, name;
 
@@ -25,19 +26,20 @@ public class RawFileFetcher {
   }
 
   String url(String sha, String path) {
-    String encoded = Arrays.stream(path.split("/"))
-        .map(seg -> URLEncoder.encode(seg, StandardCharsets.UTF_8).replace("+", "%20"))
-        .collect(Collectors.joining("/"));
+    String encoded =
+        Arrays.stream(path.split("/"))
+            .map(seg -> URLEncoder.encode(seg, StandardCharsets.UTF_8).replace("+", "%20"))
+            .collect(Collectors.joining("/"));
     return "https://raw.githubusercontent.com/%s/%s/%s/%s".formatted(owner, name, sha, encoded);
   }
 
   public String get(String sha, String path) throws IOException, InterruptedException {
     String urlString = url(sha, path);
-    HttpRequest req = HttpRequest.newBuilder(URI.create(urlString))
-        .timeout(Duration.ofSeconds(30))
-        .GET().build();
+    HttpRequest req =
+        HttpRequest.newBuilder(URI.create(urlString)).timeout(Duration.ofSeconds(30)).GET().build();
 
-    HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+    HttpResponse<String> resp =
+        http.send(req, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
 
     if (resp.statusCode() != 200) {
       throw new IOException(String.format("HTTP %d: %s", resp.statusCode(), resp.body()));

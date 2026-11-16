@@ -10,5 +10,4 @@ public record RepoCriteria(
     boolean excludeAndroid,
     int minJavaFiles,
     int maxModules,
-    boolean requireMainOrTestEntryPoint) {
-}
+    boolean requireMainOrTestEntryPoint) {}
