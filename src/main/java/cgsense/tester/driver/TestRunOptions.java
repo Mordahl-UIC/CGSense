@@ -4,6 +4,18 @@ import java.net.URISyntaxException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
+/*TestRunOptions is a frozen bundle of everything needed to run the tests once. It can't change, so every repeat runs with exactly the same settings. with... makes a modified copy,
+ and defaultAgentJar() finds the agent jar next to the driver.*/
+ /*
+ RunOptions.toOptions(includes)
+   ├─ defaultAgentJar()                 → .../agent/target/dyncg-agent.jar
+   └─ new TestRunOptions(...)           (buildTool = AUTO)
+         ▼
+VersionRunner.run
+   └─ options.withBuildTool(MAVEN)      → new copy (buildTool = MAVEN)
+         ▼
+TestRunner.runTests(..., options)       → mvn -B test ... with -javaagent:dyncg-agent.jar=include=demo/,...,flush=60
+*/
 
 /** How to run a project's tests under the agent. Immutable. */
 public final class TestRunOptions {
@@ -41,25 +53,23 @@ public final class TestRunOptions {
         this.buildTool = buildTool;
     }
 
+    /** Returns a new TestRunOptions with the given includes. */
     TestRunOptions withIncludes(List<String> newIncludes) {
         return new TestRunOptions(agentJar, newIncludes, excludes, javaHome, tests, testTimeoutSeconds,
                 timeoutSeconds, offline, flushSeconds, mvn, gradle, buildTool);
     }
-
+//    TestRunOptions withExcludes(List<String> newExcludes) {
     TestRunOptions withJavaHome(Path newJavaHome) {
         return new TestRunOptions(agentJar, includes, excludes, newJavaHome, tests, testTimeoutSeconds,
                 timeoutSeconds, offline, flushSeconds, mvn, gradle, buildTool);
     }
 
-    TestRunOptions withBuildTool(BuildTool newBuildTool) {
+    TestRunOptions withBuildTool(BuildTool newBuildTool) {//Returns a new TestRunOptions with the given build tool. The build tool is used to run the tests, and can be auto, maven or gradle.
         return new TestRunOptions(agentJar, includes, excludes, javaHome, tests, testTimeoutSeconds,
                 timeoutSeconds, offline, flushSeconds, mvn, gradle, newBuildTool);
     }
 
-    /**
-     * The agent jar next to this driver: {@code target/cgsense-*.jar} (or {@code target/classes})
-     * → {@code target/cgsense-agent.jar}. The system property {@code cgsense.agent.jar} overrides it.
-     */
+    /** Returns the default path to the dyncg-agent.jar file. */
     static Path defaultAgentJar() {
         String override = System.getProperty("cgsense.agent.jar");
         if (override != null) {
