@@ -108,10 +108,12 @@ public class CommitMiner {
         Optional<List<ChangedFile>> files = candidateFiles(repo, diff, parent, child);
         if (files.isPresent()) {
           int javaVersion = box.buildPair(parent.name(), child.name());
-          CommitPair pair =
-              new CommitPair(fullRepoName, parent.name(), child.name(), javaVersion, files.get());
-          writer.write(pair);
-          if (++accepted >= MAX_PAIRS_PER_REPO) break;
+          if (javaVersion > 0) {
+            CommitPair pair =
+                new CommitPair(fullRepoName, parent.name(), child.name(), javaVersion, files.get());
+            writer.write(pair);
+            if (++accepted >= MAX_PAIRS_PER_REPO) break;
+          }
         }
       }
 
