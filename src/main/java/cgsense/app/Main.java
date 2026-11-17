@@ -12,6 +12,7 @@ import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.help.HelpFormatter;
 import org.apache.commons.cli.help.TextHelpAppendable;
 
+import cgsense.app.cmd.CallGraphPairCommand;
 import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
@@ -28,6 +29,7 @@ public class Main {
     reigster(new DiscoverCommand());
     reigster(new CommitMinerCommand());
     reigster(new VersionCommand());
+    reigster(new CallGraphPairCommand());
   }
 
   private static void reigster(CliCommand c) {

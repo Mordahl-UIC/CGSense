@@ -23,6 +23,7 @@ enum BuildTool {
 
 //parse(String value) converts the string from the command line into a BuildTool enum value.Called from: RunOptions.toOptions() (line 106) when building TestRunOptions.
     static BuildTool parse(String value) { 
+        try {
             return valueOf(value.toUpperCase());
         } catch (IllegalArgumentException error) {
             throw new UsageException("unknown build tool '" + value + "' (expected auto, maven or gradle)");

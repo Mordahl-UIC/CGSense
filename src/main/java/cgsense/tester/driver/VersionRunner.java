@@ -26,7 +26,7 @@ print warnings and a summary*/
         └─ print summary, return graph
 */
 
-final class VersionRunner {
+public final class VersionRunner {
 
     private VersionRunner() {
     }

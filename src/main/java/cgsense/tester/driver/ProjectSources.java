@@ -21,9 +21,9 @@ import java.util.regex.Pattern;
 
 every top-level class name (for example demo.Calculator), and
 whether it's main code or test code.
-The driver uses this for two things: detecting --include when you don't give one, and the origin field of each node in callgraph.json.
+The driver uses this for two things: detecting --include when you don't give one, and the origin field of each node in callgraph.json.*/
 
-/*bin/dyncg version --project-dir X --out Y [--include ...]
+/* bin/dyncg version --project-dir X --out Y [--include ...]
    │
    ▼
 Main.main → execute → VersionCommand.run(cl)
@@ -64,7 +64,7 @@ Main.main → execute → VersionCommand.run(cl)
                        → node "origin" in callgraph.json
 */
 
-It does not compile or run anything. It only reads text files.*/
+/* It does not compile or run anything. It only reads text files. */
 
 /** Static facts about a checked-out project: its packages and which classes are test code. */
 public final class ProjectSources {
@@ -88,7 +88,7 @@ public final class ProjectSources {
  *   Effect:            org/junit/..., org/apache/... are not instrumented
  */
 
-/*/*
+/*
  * Limitation: only a shared part made of ONE generic word (org, com, ...) is rejected.
  * A two-part prefix is always accepted, even if libraries share it too.
  *
@@ -130,7 +130,7 @@ public final class ProjectSources {
 
 /*scan walks through every folder and file of the project, finds the .java source files, and records each class as main or test. 
 It returns a ProjectSources object holding that information in origins.*/
-    static ProjectSources scan(Path projectDir) throws IOException {
+    public static ProjectSources scan(Path projectDir) throws IOException {
         ProjectSources sources = new ProjectSources();
         Files.walkFileTree(projectDir, new SimpleFileVisitor<Path>() {
             @Override
@@ -214,7 +214,7 @@ It returns a ProjectSources object holding that information in origins.*/
  * In one line: use the part of the package names that all classes share; if that is too
  * general (like "org"), go one word deeper.
  */
-    List<String> detectIncludePrefixes() {
+    public List<String> detectIncludePrefixes() {
         TreeSet<String> packages = new TreeSet<>();
         TreeSet<String> defaultPackage = new TreeSet<>();
         for (String className : origins.keySet()) {
