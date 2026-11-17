@@ -13,6 +13,7 @@ import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
@@ -104,18 +105,11 @@ public class CommitMiner {
         }
         RevCommit parent = child.getParent(0);
 
-        Set<String> childRootFiles = getRootFiles(repo, child);
-        Set<String> parentRootFiles = getRootFiles(repo, parent);
-        boolean childHasBuildSystem = childRootFiles.stream().anyMatch(this::isBuildFile);
-        boolean parentHasBuildSystem = parentRootFiles.stream().anyMatch(this::isBuildFile);
-        if (!childHasBuildSystem || !parentHasBuildSystem) continue;
-        if (onlyCommentsOrFormatting(repo, diff, parent, child)) continue;
-
-        List<ChangedFile> files = changedFiles(diff, parent, child);
-        if (select(files)) {
+        Optional<List<ChangedFile>> files = candidateFiles(repo, diff, parent, child);
+        if (files.isPresent()) {
           int javaVersion = box.buildPair(parent.name(), child.name());
           CommitPair pair =
-              new CommitPair(fullRepoName, parent.name(), child.name(), javaVersion, files);
+              new CommitPair(fullRepoName, parent.name(), child.name(), javaVersion, files.get());
           writer.write(pair);
           if (++accepted >= MAX_PAIRS_PER_REPO) break;
         }
@@ -128,9 +122,26 @@ public class CommitMiner {
     }
   }
 
+  /**
+   * Applies the selection criteria to one parent/child pair and returns the changed files when the
+   * pair is accepted. Does not build anything.
+   */
+  static Optional<List<ChangedFile>> candidateFiles(
+      Repository repo, DiffFormatter diff, RevCommit parent, RevCommit child) throws IOException {
+    Set<String> childRootFiles = getRootFiles(repo, child);
+    Set<String> parentRootFiles = getRootFiles(repo, parent);
+    boolean childHasBuildSystem = childRootFiles.stream().anyMatch(CommitMiner::isBuildFile);
+    boolean parentHasBuildSystem = parentRootFiles.stream().anyMatch(CommitMiner::isBuildFile);
+    if (!childHasBuildSystem || !parentHasBuildSystem) return Optional.empty();
+    if (onlyCommentsOrFormatting(repo, diff, parent, child)) return Optional.empty();
+
+    List<ChangedFile> files = changedFiles(diff, parent, child);
+    return select(files) ? Optional.of(files) : Optional.empty();
+  }
+
   private static final int MAX_JAVA_LINES = 20;
 
-  private boolean select(List<ChangedFile> files) {
+  private static boolean select(List<ChangedFile> files) {
     int javaLines = 0;
     for (ChangedFile f : files) {
       String p = f.filePath();
@@ -149,7 +160,7 @@ public class CommitMiner {
     return true;
   }
 
-  private boolean onlyCommentsOrFormatting(
+  private static boolean onlyCommentsOrFormatting(
       Repository repo, DiffFormatter diff, RevCommit parent, RevCommit child) throws IOException {
     for (DiffEntry e : diff.scan(parent, child)) {
       String path = e.getNewPath();
@@ -166,7 +177,7 @@ public class CommitMiner {
     return true;
   }
 
-  private Set<String> getRootFiles(Repository repo, RevCommit commit) throws IOException {
+  private static Set<String> getRootFiles(Repository repo, RevCommit commit) throws IOException {
     TreeWalk treeWalk = new TreeWalk(repo);
     treeWalk.addTree(commit.getTree());
 
@@ -186,7 +197,8 @@ public class CommitMiner {
     return new String(repo.open(oid, Constants.OBJ_BLOB).getBytes(), StandardCharsets.UTF_8);
   }
 
-  private List<ChangedFile> changedFiles(DiffFormatter diff, RevCommit parent, RevCommit child) {
+  private static List<ChangedFile> changedFiles(
+      DiffFormatter diff, RevCommit parent, RevCommit child) {
     List<ChangedFile> files = new ArrayList<>();
 
     try {
@@ -206,20 +218,20 @@ public class CommitMiner {
     return files;
   }
 
-  private boolean isMainJava(String p) {
+  private static boolean isMainJava(String p) {
     return p.endsWith(".java") && !isTest(p) && !isGenerated(p);
   }
 
-  private boolean isTest(String p) {
+  private static boolean isTest(String p) {
     String s = "/" + p;
     return s.contains("/test/") || s.contains("/tests/");
   }
 
-  private boolean isGenerated(String p) {
+  private static boolean isGenerated(String p) {
     return ("/" + p).contains("/generated/");
   }
 
-  private boolean isBuildFile(String p) {
+  private static boolean isBuildFile(String p) {
     String fileName = p.substring(p.lastIndexOf('/') + 1);
     return fileName.equals("pom.xml")
         || fileName.startsWith("build.gradle")
