@@ -1,7 +1,6 @@
 package cgsense.app.cmd;
 
 import java.nio.file.Path;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Option;
 import org.apache.commons.cli.Options;
@@ -27,5 +26,4 @@ public class TesterCommand implements CliCommand {
 
     return 0;
   }
-
 }
