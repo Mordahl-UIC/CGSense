@@ -28,7 +28,7 @@ public class JavaCode {
         i = j;
       } else if (c == '"' || c == '\'') {
         int j = i + 1;
-        while (i < n && s.charAt(j) != c && s.charAt(j) != '\n') {
+        while (j < n && s.charAt(j) != c && s.charAt(j) != '\n') {
           if (s.charAt(j) == '\\') {
             j++;
           }

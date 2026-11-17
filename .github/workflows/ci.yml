@@ -29,5 +29,6 @@ jobs:
             rm -rf "$p/target"
           done
 
-      # Compiles, runs unit + end-to-end tests and runs spotless:check
+      # Compiles, runs unit + regression tests (surefire), end-to-end tests (failsafe)
+      # and spotless:check
       - run: mvn -B -ntp verify
