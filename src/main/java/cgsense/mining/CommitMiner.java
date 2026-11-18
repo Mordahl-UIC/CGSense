@@ -1,5 +1,6 @@
 package cgsense.mining;
 
+import cgsense.app.DataDir;
 import cgsense.exec.BuildContainer;
 import cgsense.io.JsonlWriter;
 import cgsense.model.ChangedFile;
@@ -9,7 +10,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -42,18 +42,17 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
 
 public class CommitMiner {
 
-  private final Path clonesDir;
-  private final Path outputFile;
+  private final DataDir data;
+  private final JsonlWriter writer;
   private static final int MAX_PAIRS_PER_REPO = 100;
 
-  public CommitMiner(Path clonesDir, Path outputFile, boolean overwrite) {
-    this.clonesDir = clonesDir;
-    this.outputFile = outputFile;
-    try {
-      if (overwrite) Files.deleteIfExists(outputFile);
-    } catch (Exception e) {
-      System.err.println("Failed to delete existing output file.");
-    }
+  /**
+   * @param data where bare clones are kept; the build containers mount them read-only
+   * @param writer destination for accepted pairs
+   */
+  public CommitMiner(DataDir data, JsonlWriter writer) {
+    this.data = data;
+    this.writer = writer;
   }
 
   public void mine(RepoRecord repo) {
@@ -62,8 +61,7 @@ public class CommitMiner {
 
   public void mine(String fullRepoName, String cloneUrl) {
     System.out.printf("Mining: %s --- %s\n", fullRepoName, cloneUrl);
-    String slug = fullRepoName.replace("/", "_");
-    Path gitDir = clonesDir.resolve(slug);
+    Path gitDir = data.clone(fullRepoName);
 
     if (!Files.exists(gitDir)) {
       try {
@@ -80,13 +78,10 @@ public class CommitMiner {
       }
     }
 
-    try (BuildContainer box = new BuildContainer(cloneUrl, slug);
+    try (BuildContainer box = new BuildContainer(DataDir.slug(fullRepoName), gitDir);
         Repository repo = new FileRepositoryBuilder().setGitDir(gitDir.toFile()).build();
         RevWalk walk = new RevWalk(repo);
-        DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE);
-        JsonlWriter writer =
-            JsonlWriter.open(
-                this.outputFile, StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
+        DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
 
       ObjectId head = repo.resolve(Constants.HEAD);
       if (head == null) {
@@ -109,8 +104,10 @@ public class CommitMiner {
         if (files.isPresent()) {
           int javaVersion = box.buildPair(parent.name(), child.name());
           if (javaVersion > 0) {
+            String buildTool = getRootFiles(repo, child).contains("gradlew") ? "gradle" : "maven";
             CommitPair pair =
-                new CommitPair(fullRepoName, parent.name(), child.name(), javaVersion, files.get());
+                new CommitPair(
+                    fullRepoName, parent.name(), child.name(), javaVersion, buildTool, files.get());
             writer.write(pair);
             if (++accepted >= MAX_PAIRS_PER_REPO) break;
           }

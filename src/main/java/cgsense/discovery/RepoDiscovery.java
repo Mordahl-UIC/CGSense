@@ -44,7 +44,8 @@ public class RepoDiscovery {
     }
 
     try (JsonlWriter writer =
-        JsonlWriter.open(outputFile, StandardOpenOption.APPEND, StandardOpenOption.CREATE)) {
+        JsonlWriter.open(
+            outputFile, StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING)) {
       List<RepoRecord> results = new ArrayList<>();
       PagedIterator<GHRepository> it = search.list().iterator();
       while (it.hasNext() && results.size() < limit) {

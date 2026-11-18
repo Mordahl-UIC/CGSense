@@ -1,7 +1,8 @@
 JAR=target/cgsense-0.1.0-SNAPSHOT-jar-with-dependencies.jar
 
-DISCOVER_ARGS=discover --limit 2 --output output/discovered-repos/repos.jsonl
-MINE_ARGS=mine-pairs --output output/ --repos output/discovered-repos/repos.jsonl
+DISCOVER_ARGS=discover --limit 2
+MINE_ARGS=mine-pairs
+TEST_ARGS=tester --output output/results
 ARGS=$(MINE_ARGS)
 
 
