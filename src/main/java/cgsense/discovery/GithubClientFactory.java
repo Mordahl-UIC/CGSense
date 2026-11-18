@@ -14,11 +14,14 @@ import org.kohsuke.github.GitHubBuilder;
 
 public final class GithubClientFactory {
   public static GitHub create() throws IOException {
+    try {
     Dotenv dotenv = Dotenv.load();
     String token = dotenv.get("GITHUB_TOKEN");
-    if (token == null || token.isEmpty()) {
-      throw new IllegalStateException("Missing GITHUB_TOKEN environment variable");
-    }
+      System.out.println("Found GitHub Token");
     return new GitHubBuilder().withOAuthToken(token).build();
+    } catch (Exception e) {
+      System.out.println("No GitHub Token. Limited requests.");
+      return new GitHubBuilder().build();
+    }
   }
 }
