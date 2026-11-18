@@ -1,6 +1,7 @@
 package cgsense.mining;
 
 import cgsense.app.DataDir;
+import cgsense.app.Log;
 import cgsense.exec.BuildContainer;
 import cgsense.io.JsonlWriter;
 import cgsense.model.ChangedFile;
@@ -15,6 +16,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.diff.DiffEntry;
@@ -41,6 +44,8 @@ import org.eclipse.jgit.util.io.DisabledOutputStream;
  * */
 
 public class CommitMiner {
+  private static final Logger LOG = Log.get(CommitMiner.class);
+  private static final int PROGRESS_EVERY = 10;
 
   private final DataDir data;
   private final JsonlWriter writer;
@@ -55,29 +60,42 @@ public class CommitMiner {
     this.writer = writer;
   }
 
-  public void mine(RepoRecord repo) {
-    mine(repo.fullName(), repo.url() + ".git");
+  /** Mines one repo and returns how many pairs were written. */
+  public int mine(RepoRecord repo) {
+    return mine(repo.fullName(), repo.url() + ".git");
   }
 
-  public void mine(String fullRepoName, String cloneUrl) {
-    System.out.printf("Mining: %s --- %s\n", fullRepoName, cloneUrl);
+  public int mine(String fullRepoName, String cloneUrl) {
+    LOG.info(String.format("Mining %s (%s)", fullRepoName, cloneUrl));
     Path gitDir = data.clone(fullRepoName);
 
-    if (!Files.exists(gitDir)) {
+    if (Files.exists(gitDir)) {
+      LOG.info("Reusing existing clone " + gitDir);
+    } else {
       try {
-        System.out.printf("Cloning repository %s \n", fullRepoName);
+        LOG.info(String.format("Cloning %s into %s", fullRepoName, gitDir));
+        long start = System.nanoTime();
         Git.cloneRepository()
             .setURI(cloneUrl)
             .setDirectory(gitDir.toFile())
             .setBare(true)
             .call()
             .close();
+        LOG.info(
+            String.format("Cloned %s in %s", fullRepoName, seconds(System.nanoTime() - start)));
       } catch (GitAPIException e) {
-        System.err.println("Failed to clone repo: " + fullRepoName);
-        return;
+        LOG.severe(String.format("Failed to clone %s: %s", fullRepoName, e.getMessage()));
+        return 0;
       }
     }
 
+    int walked = 0;
+    int nonLinear = 0;
+    int rejected = 0;
+    int candidates = 0;
+    int buildFailed = 0;
+    int accepted = 0;
+    LOG.info("Starting build container for " + fullRepoName);
     try (BuildContainer box = new BuildContainer(DataDir.slug(fullRepoName), gitDir);
         Repository repo = new FileRepositoryBuilder().setGitDir(gitDir.toFile()).build();
         RevWalk walk = new RevWalk(repo);
@@ -85,40 +103,94 @@ public class CommitMiner {
 
       ObjectId head = repo.resolve(Constants.HEAD);
       if (head == null) {
-        System.err.println("Empty repo.");
-        return;
+        LOG.warning(String.format("%s is empty (no HEAD); skipping", fullRepoName));
+        return 0;
       }
 
       diff.setRepository(repo);
       walk.markStart(walk.parseCommit(head));
 
-      System.out.printf("Walking commit history of %s\n", fullRepoName);
-      int accepted = 0;
+      LOG.info(String.format("Walking commit history of %s from %s", fullRepoName, short7(head)));
       for (RevCommit child : walk) {
+        if (++walked % PROGRESS_EVERY == 0) {
+          LOG.info(
+              String.format(
+                  "%s: walked %d commits, %d candidates, %d accepted",
+                  fullRepoName, walked, candidates, accepted));
+        }
         if (child.getParentCount() == 0 || child.getParentCount() > 1) {
+          nonLinear++;
+          LOG.fine(
+              String.format(
+                  "%s skip: %s",
+                  short7(child), child.getParentCount() == 0 ? "root commit" : "merge commit"));
           continue;
         }
         RevCommit parent = child.getParent(0);
 
         Optional<List<ChangedFile>> files = candidateFiles(repo, diff, parent, child);
-        if (files.isPresent()) {
-          int javaVersion = box.buildPair(parent.name(), child.name());
-          if (javaVersion > 0) {
-            String buildTool = getRootFiles(repo, child).contains("gradlew") ? "gradle" : "maven";
-            CommitPair pair =
-                new CommitPair(
-                    fullRepoName, parent.name(), child.name(), javaVersion, buildTool, files.get());
-            writer.write(pair);
-            if (++accepted >= MAX_PAIRS_PER_REPO) break;
-          }
+        if (files.isEmpty()) {
+          rejected++;
+          continue;
+        }
+
+        candidates++;
+        LOG.info(
+            String.format(
+                "%s candidate (%d files, %d main java lines): %s",
+                short7(child),
+                files.get().size(),
+                mainJavaLines(files.get()),
+                child.getShortMessage()));
+        int javaVersion = box.buildPair(parent.name(), child.name());
+        if (javaVersion <= 0) {
+          buildFailed++;
+          LOG.info(
+              String.format("%s rejected: no JDK builds both parent and child", short7(child)));
+          continue;
+        }
+
+        String buildTool = getRootFiles(repo, child).contains("gradlew") ? "gradle" : "maven";
+        CommitPair pair =
+            new CommitPair(
+                fullRepoName, parent.name(), child.name(), javaVersion, buildTool, files.get());
+        writer.write(pair);
+        accepted++;
+        LOG.info(
+            String.format(
+                "%s accepted on JDK %d with %s [%d/%d]",
+                short7(child), javaVersion, buildTool, accepted, MAX_PAIRS_PER_REPO));
+        if (accepted >= MAX_PAIRS_PER_REPO) {
+          LOG.info(
+              String.format("%s: reached %d pairs, stopping", fullRepoName, MAX_PAIRS_PER_REPO));
+          break;
         }
       }
-
-      System.out.printf("Finished verifying %s. Found %d commits\n", fullRepoName, accepted);
     } catch (IOException e) {
-      System.out.println("Commit miner failed on " + fullRepoName + " with exception: " + e);
-      return;
+      LOG.log(Level.SEVERE, "Commit miner failed on " + fullRepoName, e);
     }
+
+    LOG.info(
+        String.format(
+            "Finished %s: walked %d commits (%d root/merge, %d filtered out), %d candidates,"
+                + " %d failed to build, %d accepted",
+            fullRepoName, walked, nonLinear, rejected, candidates, buildFailed, accepted));
+    return accepted;
+  }
+
+  private static String short7(ObjectId id) {
+    return id.abbreviate(7).name();
+  }
+
+  private static String seconds(long nanos) {
+    return String.format("%.1fs", nanos / 1e9);
+  }
+
+  private static int mainJavaLines(List<ChangedFile> files) {
+    return files.stream()
+        .filter(f -> isMainJava(f.filePath()))
+        .mapToInt(f -> f.numLinesAdded() + f.numLinesDeleted())
+        .sum();
   }
 
   /**
@@ -131,32 +203,53 @@ public class CommitMiner {
     Set<String> parentRootFiles = getRootFiles(repo, parent);
     boolean childHasBuildSystem = childRootFiles.stream().anyMatch(CommitMiner::isBuildFile);
     boolean parentHasBuildSystem = parentRootFiles.stream().anyMatch(CommitMiner::isBuildFile);
-    if (!childHasBuildSystem || !parentHasBuildSystem) return Optional.empty();
-    if (onlyCommentsOrFormatting(repo, diff, parent, child)) return Optional.empty();
+    if (!childHasBuildSystem || !parentHasBuildSystem) {
+      LOG.fine(
+          String.format(
+              "%s skip: no root build file in %s",
+              short7(child), childHasBuildSystem ? "parent" : "child"));
+      return Optional.empty();
+    }
+    if (onlyCommentsOrFormatting(repo, diff, parent, child)) {
+      LOG.fine(String.format("%s skip: no code change in main java files", short7(child)));
+      return Optional.empty();
+    }
 
     List<ChangedFile> files = changedFiles(diff, parent, child);
-    return select(files) ? Optional.of(files) : Optional.empty();
+    String reason = rejectReason(files);
+    if (reason != null) {
+      LOG.fine(String.format("%s skip: %s", short7(child), reason));
+      return Optional.empty();
+    }
+    return Optional.of(files);
   }
 
   private static final int MAX_JAVA_LINES = 20;
 
-  private static boolean select(List<ChangedFile> files) {
+  /** Returns why the pair is rejected, or null when it is selected. */
+  private static String rejectReason(List<ChangedFile> files) {
     int javaLines = 0;
     for (ChangedFile f : files) {
       String p = f.filePath();
-      if (isTest(p) || isBuildFile(p)) {
-        return false;
+      if (isTest(p)) {
+        return "touches test file " + p;
+      }
+      if (isBuildFile(p)) {
+        return "touches build file " + p;
       }
       if (isMainJava(p)) {
         javaLines += f.numLinesAdded() + f.numLinesDeleted();
       }
     }
 
-    if (javaLines == 0 || javaLines >= MAX_JAVA_LINES) {
-      return false;
+    if (javaLines == 0) {
+      return "no main java lines changed";
+    }
+    if (javaLines >= MAX_JAVA_LINES) {
+      return String.format("%d main java lines changed >= max %d", javaLines, MAX_JAVA_LINES);
     }
 
-    return true;
+    return null;
   }
 
   private static boolean onlyCommentsOrFormatting(
@@ -212,6 +305,9 @@ public class CommitMiner {
         files.add(new ChangedFile(entry.getNewPath(), added, deleted));
       }
     } catch (IOException e) {
+      LOG.warning(
+          String.format(
+              "Could not diff %s..%s: %s", short7(parent), short7(child), e.getMessage()));
     }
 
     return files;

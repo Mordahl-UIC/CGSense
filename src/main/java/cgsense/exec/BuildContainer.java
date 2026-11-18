@@ -1,11 +1,14 @@
 package cgsense.exec;
 
+import cgsense.app.Log;
 import java.io.IOException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * One Docker container per repository. The host's bare clone is mounted read-only at /mirror and
@@ -13,6 +16,10 @@ import java.util.Map;
  * Each build gets a fresh checkout under /work.
  */
 public class BuildContainer implements AutoCloseable {
+  private static final Logger LOG = Log.get(BuildContainer.class);
+
+  /** Lines of a failed build's output shown at INFO; the full output is logged at FINE. */
+  private static final int FAILURE_TAIL_LINES = 20;
 
   private static final String IMAGE = "cgsense-build";
   private static final String M2_VOLUME = "cgsense-m2";
@@ -59,6 +66,7 @@ public class BuildContainer implements AutoCloseable {
   public BuildContainer(String slug, Path mirror) throws IOException {
     this.name = "cgsense-" + slug;
     docker("rm", "-f", name);
+    LOG.info(String.format("Starting container %s from %s, mirror %s", name, IMAGE, mirror));
 
     CommandResult r =
         docker(
@@ -78,6 +86,7 @@ public class BuildContainer implements AutoCloseable {
     if (r.exitCode() != 0) {
       throw new IOException(String.format("docker run failed: %s", r.output()));
     }
+    LOG.info("Container " + name + " is up");
   }
 
   static String script(String dir, String sha, int jdk) {
@@ -92,20 +101,32 @@ public class BuildContainer implements AutoCloseable {
   public boolean build(String sha, int jdk) throws IOException {
     String key = sha + "@" + jdk;
     Boolean cached = built.get(key);
-    if (cached != null) return cached;
+    if (cached != null) {
+      LOG.fine(String.format("%s JDK %d cached: %s", shortSha(sha), jdk, cached ? "OK" : "FAILED"));
+      return cached;
+    }
 
     String dir = sha + "-" + ++checkouts;
+    LOG.info(String.format("Building %s on JDK %d", shortSha(sha), jdk));
     CommandResult r = sh(script(dir, sha, jdk));
 
-    String tag = String.format("  %s %s JDK %d", name, sha, jdk);
+    String tag = String.format("%s JDK %d", shortSha(sha), jdk);
+    String took = String.format("%.1fs", r.elapsedTime() / 1e9);
     if (r.exitCode() == 127) {
+      LOG.severe(String.format("%s: exit 127 in %s%n%s", tag, name, r.output()));
       throw new IOException("Image is missing a tool or JDK");
     }
     boolean ok = r.exitCode() == 0;
     if (ok) {
-      System.out.println(tag + "  OK");
+      LOG.info(String.format("%s OK (%s)", tag, took));
     } else {
-      System.out.printf("%s  exit %d %n%s%n", tag, r.exitCode(), r.output());
+      LOG.info(
+          String.format(
+              "%s FAILED exit %d (%s); last lines:%n%s",
+              tag, r.exitCode(), took, tail(r.output(), FAILURE_TAIL_LINES)));
+      if (LOG.isLoggable(Level.FINE)) {
+        LOG.fine(String.format("%s full output:%n%s", tag, r.output()));
+      }
     }
     built.put(key, ok);
     return ok;
@@ -125,6 +146,15 @@ public class BuildContainer implements AutoCloseable {
         preferredJdk = idx;
         return jdk;
       }
+      if (tries + 1 < JDKS.length) {
+        LOG.info(
+            String.format(
+                "%s..%s does not build on JDK %d, trying JDK %d",
+                shortSha(parentSha),
+                shortSha(childSha),
+                jdk,
+                JDKS[(start + tries + 1) % JDKS.length]));
+      }
     }
     return -1;
   }
@@ -136,13 +166,31 @@ public class BuildContainer implements AutoCloseable {
 
   @Override
   public void close() throws IOException {
+    LOG.info("Removing container " + name);
     docker("rm", "-f", name);
+  }
+
+  private static String shortSha(String sha) {
+    return sha.length() > 7 ? sha.substring(0, 7) : sha;
+  }
+
+  private static String tail(String output, int lines) {
+    String[] all = output.split("\\R");
+    int from = Math.max(0, all.length - lines);
+    return String.join(System.lineSeparator(), List.of(all).subList(from, all.length));
   }
 
   public CommandResult docker(String... args) throws IOException {
     List<String> cmd = new ArrayList<>();
     cmd.add("docker");
     cmd.addAll(List.of(args));
-    return CommandRunner.run(cmd, null);
+    if (LOG.isLoggable(Level.FINER)) {
+      LOG.finer(String.join(" ", cmd));
+    }
+    CommandResult r = CommandRunner.run(cmd, null);
+    if (r.exitCode() == -1) {
+      LOG.warning(String.format("Could not run docker: %s", r.output()));
+    }
+    return r;
   }
 }
