@@ -210,63 +210,59 @@ public class CommitMiner {
               short7(child), childHasBuildSystem ? "parent" : "child"));
       return Optional.empty();
     }
-    if (onlyCommentsOrFormatting(repo, diff, parent, child)) {
-      LOG.fine(String.format("%s skip: no code change in main java files", short7(child)));
-      return Optional.empty();
-    }
 
-    List<ChangedFile> files = changedFiles(diff, parent, child);
-    String reason = rejectReason(files);
-    if (reason != null) {
-      LOG.fine(String.format("%s skip: %s", short7(child), reason));
-      return Optional.empty();
-    }
-    return Optional.of(files);
+    return Optional.ofNullable(selectedFiles(repo, diff, parent, child));
   }
 
   private static final int MAX_JAVA_LINES = 20;
 
-  /** Returns why the pair is rejected, or null when it is selected. */
-  private static String rejectReason(List<ChangedFile> files) {
+  /**
+   * Scans the diff once and returns the changed files, or null (logging why) when the pair is
+   * rejected. The path and line-count checks run first; the source comparison, which reads and
+   * parses both sides of every main java file, only runs for pairs that pass them.
+   */
+  private static List<ChangedFile> selectedFiles(
+      Repository repo, DiffFormatter diff, RevCommit parent, RevCommit child) throws IOException {
+    List<ChangedFile> files = new ArrayList<>();
+    List<DiffEntry> mainJava = new ArrayList<>();
     int javaLines = 0;
-    for (ChangedFile f : files) {
-      String p = f.filePath();
-      if (isTest(p)) {
-        return "touches test file " + p;
+
+    for (DiffEntry entry : diff.scan(parent, child)) {
+      String p = entry.getNewPath();
+      if (isTest(p)) return reject(child, "touches test file " + p);
+      if (isBuildFile(p)) return reject(child, "touches build file " + p);
+
+      int added = 0;
+      int deleted = 0;
+      for (Edit edit : diff.toFileHeader(entry).toEditList()) {
+        deleted += edit.getLengthA();
+        added += edit.getLengthB();
       }
-      if (isBuildFile(p)) {
-        return "touches build file " + p;
-      }
+      files.add(new ChangedFile(p, added, deleted));
+
       if (isMainJava(p)) {
-        javaLines += f.numLinesAdded() + f.numLinesDeleted();
+        javaLines += added + deleted;
+        mainJava.add(entry);
       }
     }
 
-    if (javaLines == 0) {
-      return "no main java lines changed";
-    }
+    if (javaLines == 0) return reject(child, "no main java lines changed");
     if (javaLines >= MAX_JAVA_LINES) {
-      return String.format("%d main java lines changed >= max %d", javaLines, MAX_JAVA_LINES);
+      return reject(
+          child, String.format("%d main java lines changed >= max %d", javaLines, MAX_JAVA_LINES));
     }
 
-    return null;
+    for (DiffEntry entry : mainJava) {
+      if (!JavaCode.sameCode(read(repo, entry.getOldId()), read(repo, entry.getNewId()))) {
+        return files;
+      }
+    }
+    return reject(child, "only comments or formatting changed in main java files");
   }
 
-  private static boolean onlyCommentsOrFormatting(
-      Repository repo, DiffFormatter diff, RevCommit parent, RevCommit child) throws IOException {
-    for (DiffEntry e : diff.scan(parent, child)) {
-      String path = e.getNewPath();
-      if (!isMainJava(path)) continue;
-
-      String before = read(repo, e.getOldId());
-      String after = read(repo, e.getNewId());
-
-      if (!JavaCode.sameCode(before, after)) {
-        return false;
-      }
-    }
-
-    return true;
+  private static List<ChangedFile> reject(RevCommit child, String reason) {
+    LOG.fine(String.format("%s skip: %s", short7(child), reason));
+    return null;
   }
 
   private static Set<String> getRootFiles(Repository repo, RevCommit commit) throws IOException {
@@ -287,30 +283,6 @@ public class CommitMiner {
     ObjectId oid = id.toObjectId();
     if (oid.equals(ObjectId.zeroId())) return "";
     return new String(repo.open(oid, Constants.OBJ_BLOB).getBytes(), StandardCharsets.UTF_8);
-  }
-
-  private static List<ChangedFile> changedFiles(
-      DiffFormatter diff, RevCommit parent, RevCommit child) {
-    List<ChangedFile> files = new ArrayList<>();
-
-    try {
-      for (DiffEntry entry : diff.scan(parent, child)) {
-        int added = 0;
-        int deleted = 0;
-        for (Edit edit : diff.toFileHeader(entry).toEditList()) {
-          deleted += edit.getLengthA();
-          added += edit.getLengthB();
-        }
-
-        files.add(new ChangedFile(entry.getNewPath(), added, deleted));
-      }
-    } catch (IOException e) {
-      LOG.warning(
-          String.format(
-              "Could not diff %s..%s: %s", short7(parent), short7(child), e.getMessage()));
-    }
-
-    return files;
   }
 
   private static boolean isMainJava(String p) {
