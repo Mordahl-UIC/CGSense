@@ -11,9 +11,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * One Docker container per repository. The host's bare clone is mounted read-only at /mirror and
- * the Maven/Gradle caches live on named volumes shared by every container, so nothing is cloned.
- * Each build gets a fresh checkout under /work.
+ * One Docker container per repository. The host's bare clone is copied into the container once at
+ * /mirror with docker cp.
+ * the network. Each build gets a fresh checkout under /work; /mirror is only read.
  */
 public class BuildContainer implements AutoCloseable {
   private static final Logger LOG = Log.get(BuildContainer.class);
@@ -66,7 +66,7 @@ public class BuildContainer implements AutoCloseable {
   public BuildContainer(String slug, Path mirror) throws IOException {
     this.name = "cgsense-" + slug;
     docker("rm", "-f", name);
-    LOG.info(String.format("Starting container %s from %s, mirror %s", name, IMAGE, mirror));
+    LOG.info(String.format("Starting container %s from %s", name, IMAGE));
 
     CommandResult r =
         docker(
@@ -74,8 +74,6 @@ public class BuildContainer implements AutoCloseable {
             "-d",
             "--name",
             name,
-            "-v",
-            mirror.toAbsolutePath() + ":/mirror:ro",
             "-v",
             M2_VOLUME + ":/root/.m2",
             "-v",
@@ -86,6 +84,11 @@ public class BuildContainer implements AutoCloseable {
     if (r.exitCode() != 0) {
       throw new IOException(String.format("docker run failed: %s", r.output()));
     }
+    CommandResult cp = docker("cp", mirror.toAbsolutePath().toString(), name + ":/mirror");
+    if (cp.exitCode() != 0) {
+      throw new IOException(String.format("docker cp of %s failed: %s", mirror, cp.output()));
+    }
+    LOG.info(String.format("Copied %s into %s (%.1fs)", mirror, name, cp.elapsedTime() / 1e9));
     LOG.info("Container " + name + " is up");
   }
 
@@ -116,6 +119,7 @@ public class BuildContainer implements AutoCloseable {
       LOG.severe(String.format("%s: exit 127 in %s%n%s", tag, name, r.output()));
       throw new IOException("Image is missing a tool or JDK");
     }
+
     boolean ok = r.exitCode() == 0;
     if (ok) {
       LOG.info(String.format("%s OK (%s)", tag, took));
