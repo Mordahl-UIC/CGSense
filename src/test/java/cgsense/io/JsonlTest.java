@@ -27,14 +27,15 @@ class JsonlTest {
   @Test
   void commitPairFormatIsStable(@TempDir Path dir) throws IOException {
     CommitPair pair =
-        new CommitPair("o/r", "aaa", "bbb", 17, List.of(new ChangedFile("src/A.java", 2, 1)));
+        new CommitPair(
+            "o/r", "aaa", "bbb", 17, "maven", List.of(new ChangedFile("src/A.java", 2, 1)));
     Path file = dir.resolve("pairs.jsonl");
     try (JsonlWriter writer = JsonlWriter.open(file)) {
       writer.write(pair);
     }
     assertEquals(
         "{\"fullName\":\"o/r\",\"parentSha\":\"aaa\",\"childSha\":\"bbb\",\"javaVersion\":17,"
-            + "\"files\":[{\"filePath\":\"src/A.java\",\"numLinesAdded\":2,\"numLinesDeleted\":1}]}\n",
+            + "\"buildTool\":\"maven\",\"files\":[{\"filePath\":\"src/A.java\",\"numLinesAdded\":2,\"numLinesDeleted\":1}]}\n",
         Files.readString(file));
     assertEquals(List.of(pair), readAll(file, CommitPair.class));
   }
@@ -57,7 +58,7 @@ class JsonlTest {
   @Test
   void readsCommittedDiscoveryOutput() throws IOException {
     List<RepoRecord> repos =
-        readAll(Path.of("output/discovered-repos/repos.jsonl"), RepoRecord.class);
+        readAll(Path.of("src/test/fixture/discovered-repos.jsonl"), RepoRecord.class);
     assertFalse(repos.isEmpty());
   }
 

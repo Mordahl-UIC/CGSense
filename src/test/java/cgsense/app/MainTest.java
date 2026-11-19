@@ -2,6 +2,7 @@ package cgsense.app;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import cgsense.app.cmd.CommitMinerCommand;
 import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -41,25 +42,26 @@ class MainTest {
   void everyRegisteredCommandHasHelp() {
     assertEquals(0, Main.execute("discover", "--help"));
     assertEquals(0, Main.execute("mine-pairs", "--help"));
+    assertEquals(0, Main.execute("tester", "--help"));
     assertEquals(0, Main.execute("version", "--help"));
   }
 
   @Test
   void missingRequiredOptionsAreUsageErrors() {
+    assertEquals(2, Main.execute("discover"));
+    assertEquals(2, Main.execute("tester"));
+  }
+
+  @Test
+  void pipelinePathsAreNotOptions() {
+    assertEquals(2, Main.execute("discover", "--limit", "1", "--output", "o"));
     assertEquals(2, Main.execute("mine-pairs", "--output", "o"));
     assertEquals(2, Main.execute("mine-pairs", "--repos", "r"));
-    assertEquals(2, Main.execute("discover", "--limit", "1"));
+    assertEquals(2, Main.execute("tester", "--output", "o", "--pairs", "p"));
   }
 
   @Test
   void minePairsFailsWhenReposFileIsMissing(@TempDir Path dir) {
-    assertEquals(
-        1,
-        Main.execute(
-            "mine-pairs",
-            "--repos",
-            dir.resolve("missing.jsonl").toString(),
-            "--output",
-            dir.toString()));
+    assertEquals(1, Main.execute(new CommitMinerCommand(new DataDir(dir))));
   }
 }

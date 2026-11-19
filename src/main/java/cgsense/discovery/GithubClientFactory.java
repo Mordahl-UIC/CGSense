@@ -1,7 +1,10 @@
 package cgsense.discovery;
 
+import cgsense.app.Log;
 import io.github.cdimascio.dotenv.Dotenv;
 import java.io.IOException;
+import java.util.logging.Logger;
+import org.kohsuke.github.GHRateLimit;
 import org.kohsuke.github.GitHub;
 import org.kohsuke.github.GitHubBuilder;
 
@@ -13,12 +16,34 @@ import org.kohsuke.github.GitHubBuilder;
 * */
 
 public final class GithubClientFactory {
+  private static final Logger LOG = Log.get(GithubClientFactory.class);
+
   public static GitHub create() throws IOException {
-    Dotenv dotenv = Dotenv.load();
-    String token = dotenv.get("GITHUB_TOKEN");
-    if (token == null || token.isEmpty()) {
-      throw new IllegalStateException("Missing GITHUB_TOKEN environment variable");
+    String token = null;
+    try {
+      token = Dotenv.configure().ignoreIfMissing().load().get("GITHUB_TOKEN");
+    } catch (Exception e) {
+      LOG.warning("Could not read .env: " + e.getMessage());
     }
-    return new GitHubBuilder().withOAuthToken(token).build();
+
+    GitHub gh;
+    if (token != null && !token.isBlank()) {
+      LOG.info("Using GITHUB_TOKEN");
+      gh = new GitHubBuilder().withOAuthToken(token).build();
+    } else {
+      LOG.warning("No GITHUB_TOKEN in .env or environment; unauthenticated, requests are limited");
+      gh = new GitHubBuilder().build();
+    }
+
+    try {
+      GHRateLimit.Record core = gh.getRateLimit().getCore();
+      LOG.info(
+          String.format(
+              "GitHub rate limit: %d/%d remaining, resets %s",
+              core.getRemaining(), core.getLimit(), core.getResetDate()));
+    } catch (IOException e) {
+      LOG.warning("Could not query GitHub rate limit: " + e.getMessage());
+    }
+    return gh;
   }
 }

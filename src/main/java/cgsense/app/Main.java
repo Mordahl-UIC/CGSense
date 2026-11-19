@@ -3,6 +3,7 @@ package cgsense.app;
 import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
+import cgsense.app.cmd.TesterCommand;
 import cgsense.app.cmd.VersionCommand;
 import cgsense.tester.driver.UsageException;
 import java.io.IOException;
@@ -25,6 +26,7 @@ public class Main {
   static {
     reigster(new DiscoverCommand());
     reigster(new CommitMinerCommand());
+    reigster(new TesterCommand());
     reigster(new VersionCommand());
   }
 
@@ -33,6 +35,7 @@ public class Main {
   }
 
   public static void main(String[] args) {
+    Log.init();
     System.exit(execute(args));
   }
 
@@ -58,7 +61,11 @@ public class Main {
       printUsage(System.err);
       return 2;
     }
-    String[] rest = Arrays.copyOfRange(args, 1, args.length);
+    return execute(command, Arrays.copyOfRange(args, 1, args.length));
+  }
+
+  /** Runs one command with its arguments (the command name already removed). */
+  public static int execute(CliCommand command, String... rest) {
     if (Arrays.stream(rest).anyMatch(Main::isHelp)) {
       return printHelp(command);
     }

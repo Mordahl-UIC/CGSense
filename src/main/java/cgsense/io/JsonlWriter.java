@@ -24,6 +24,7 @@ public class JsonlWriter implements Closeable {
   public <T> void write(T item) throws IOException {
     out.write(MAPPER.writeValueAsString(item));
     out.write('\n');
+    out.flush();
   }
 
   @Override
