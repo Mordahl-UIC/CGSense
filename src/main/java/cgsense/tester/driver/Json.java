@@ -6,8 +6,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 /*
  * Json: one shared Jackson ObjectMapper for the whole driver (reading dumps, reports, callgraph.json;
  * writing callgraph/summary/diff). compact() = one-line JSON, pretty() = indented,

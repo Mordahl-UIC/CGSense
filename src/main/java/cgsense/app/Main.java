@@ -1,10 +1,10 @@
 package cgsense.app;
 
+import cgsense.app.cmd.CallGraphPairCommand;
 import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
 import cgsense.app.cmd.TesterCommand;
-import cgsense.app.cmd.CallGraphPairCommand;
 import cgsense.app.cmd.VersionCommand;
 import cgsense.tester.driver.UsageException;
 import java.io.IOException;
@@ -17,7 +17,6 @@ import org.apache.commons.cli.DefaultParser;
 import org.apache.commons.cli.ParseException;
 import org.apache.commons.cli.help.HelpFormatter;
 import org.apache.commons.cli.help.TextHelpAppendable;
-
 
 public class Main {
   public static final String VERSION = "0.1.0";
