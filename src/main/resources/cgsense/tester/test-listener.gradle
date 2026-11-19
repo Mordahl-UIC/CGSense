@@ -2,6 +2,9 @@
 // Gradle's XML reports name parameterized cases only by their display name ("[1] ..."), which
 // loses the method; the test descriptors still have it, as the parent of the case.
 // Each line of $DYNCG_GRADLE_TEST_LOG is one JSON object.
+
+//test-listener.gradle is a small Gradle init script written in Groovy. It's used only for Gradle projects. It writes down every test's class, method and result (passed, failed, error or skipped) while Gradle runs the tests, so the driver can tell which tests passed or failed.
+//For Maven, dyncg reads test results from Surefire's XML reports. Gradle also writes XML reports, but they have a problem with parameterized tests (one test method run with several inputs)
 import groovy.json.JsonOutput
 
 def log = new File(System.getenv('DYNCG_GRADLE_TEST_LOG'))
@@ -20,12 +23,6 @@ static String exceptionClass(Throwable error) {
 }
 
 gradle.allprojects { project ->
-    project.tasks.withType(Test) { task -> // the closure form works on all Gradle versions
-        task.addTestListener(new TestListener() {
-            void beforeSuite(TestDescriptor suite) {}
-
-            void afterSuite(TestDescriptor suite, TestResult result) {}
-
             void beforeTest(TestDescriptor test) {}
 
             void afterTest(TestDescriptor test, TestResult result) {
