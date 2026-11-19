@@ -12,8 +12,8 @@ import java.util.logging.Logger;
 
 /**
  * One Docker container per repository. The host's bare clone is copied into the container once at
- * /mirror with docker cp.
- * the network. Each build gets a fresh checkout under /work; /mirror is only read.
+ * /mirror with docker cp. the network. Each build gets a fresh checkout under /work; /mirror is
+ * only read.
  */
 public class BuildContainer implements AutoCloseable {
   private static final Logger LOG = Log.get(BuildContainer.class);
