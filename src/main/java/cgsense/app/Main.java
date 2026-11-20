@@ -4,7 +4,6 @@ import cgsense.app.cmd.CallGraphPairCommand;
 import cgsense.app.cmd.CliCommand;
 import cgsense.app.cmd.CommitMinerCommand;
 import cgsense.app.cmd.DiscoverCommand;
-import cgsense.app.cmd.TesterCommand;
 import cgsense.app.cmd.VersionCommand;
 import cgsense.tester.driver.UsageException;
 import java.io.IOException;
@@ -27,7 +26,6 @@ public class Main {
   static {
     reigster(new DiscoverCommand());
     reigster(new CommitMinerCommand());
-    reigster(new TesterCommand());
     reigster(new VersionCommand());
     reigster(new CallGraphPairCommand());
   }
