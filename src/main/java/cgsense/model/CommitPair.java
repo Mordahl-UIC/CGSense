@@ -8,4 +8,13 @@ public record CommitPair(
     String childSha,
     int javaVersion,
     String buildTool,
-    List<ChangedFile> files) {}
+    List<ChangedFile> files) {
+
+  private String shortSha(String sha) {
+    return sha.length() > 7 ? sha.substring(0, 7) : sha;
+  }
+
+  public String ID() {
+    return shortSha(this.parentSha()) + "-" + shortSha(this.childSha());
+  }
+}
