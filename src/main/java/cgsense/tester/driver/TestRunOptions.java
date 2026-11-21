@@ -5,17 +5,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
-/*TestRunOptions is a frozen bundle of everything needed to run the tests once. It can't change, so every repeat runs with exactly the same settings. with... makes a modified copy,
-and defaultAgentJar() finds the agent jar next to the driver.*/
 /*
- RunOptions.toOptions(includes)
-   ├─ defaultAgentJar()                 → .../agent/target/dyncg-agent.jar
-   └─ new TestRunOptions(...)           (buildTool = AUTO)
-         ▼
-VersionRunner.run
-   └─ options.withBuildTool(MAVEN)      → new copy (buildTool = MAVEN)
-         ▼
-TestRunner.runTests(..., options)       → mvn -B test ... with -javaagent:dyncg-agent.jar=include=demo/,...,flush=60
+ * TestRunOptions is a frozen bundle of everything needed to run the tests once
 */
 
 /** How to run a project's tests under the agent. Immutable. */
@@ -38,7 +29,6 @@ public final class TestRunOptions {
   final int flushSeconds;
   final String mvn;
   final String gradle;
-  final BuildTool buildTool;
 
   TestRunOptions(
       Path agentJar,
@@ -51,8 +41,7 @@ public final class TestRunOptions {
       boolean offline,
       int flushSeconds,
       String mvn,
-      String gradle,
-      BuildTool buildTool) {
+      String gradle) {
     this.agentJar = agentJar;
     this.includes = List.copyOf(includes);
     this.excludes = List.copyOf(excludes);
@@ -64,7 +53,11 @@ public final class TestRunOptions {
     this.flushSeconds = flushSeconds;
     this.mvn = mvn;
     this.gradle = gradle;
-    this.buildTool = buildTool;
+  }
+
+  /** Seconds per build invocation; null = no limit. */
+  public Integer timeoutSeconds() {
+    return timeoutSeconds;
   }
 
   /** Returns a new TestRunOptions with the given includes. */
@@ -80,8 +73,7 @@ public final class TestRunOptions {
         offline,
         flushSeconds,
         mvn,
-        gradle,
-        buildTool);
+        gradle);
   }
 
   //    TestRunOptions withExcludes(List<String> newExcludes) {
@@ -97,28 +89,9 @@ public final class TestRunOptions {
         offline,
         flushSeconds,
         mvn,
-        gradle,
-        buildTool);
+        gradle);
   }
 
-  TestRunOptions withBuildTool(
-      BuildTool
-          newBuildTool) { // Returns a new TestRunOptions with the given build tool. The build tool
-    // is used to run the tests, and can be auto, maven or gradle.
-    return new TestRunOptions(
-        agentJar,
-        includes,
-        excludes,
-        javaHome,
-        tests,
-        testTimeoutSeconds,
-        timeoutSeconds,
-        offline,
-        flushSeconds,
-        mvn,
-        gradle,
-        newBuildTool);
-  }
 
   /** Returns the default path to the dyncg-agent.jar file. */
   static Path defaultAgentJar() {

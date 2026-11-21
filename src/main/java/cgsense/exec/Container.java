@@ -189,6 +189,7 @@ public final class Container implements AutoCloseable {
     return "'" + s.replace("'", "'\\''") + "'";
   }
 
+  /** Runs a docker command */
   private CommandResult docker(String... args) {
     List<String> cmd = new ArrayList<>();
     cmd.add("docker");

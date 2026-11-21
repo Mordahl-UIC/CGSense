@@ -1,6 +1,7 @@
 package cgsense.tester.driver;
 
 import cgsense.model.CommitPair;
+import cgsense.repo.Checkout;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.LinkedHashSet;
@@ -9,20 +10,25 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Generates call graphs for an already-checked-out commit pair and then generates the call-graph
+ * Generates call graphs for an already-checked-out commit pair and then
+ * generates the call-graph
  * diff.
  *
- * <p>This class does not clone repositories or check out commits.
+ * <p>
+ * This class does not check out commits; it gets them as {@link Checkout}s.
  */
 
 //
 public final class PairCallGraphRunner {
 
-  private PairCallGraphRunner() {}
+  private PairCallGraphRunner() {
+  }
 
   public static void run(
-      CommitPair pair, Path beforeProject, Path afterProject, Path outputDirectory, RunOptions run)
+      CommitPair pair, Checkout before, Checkout after, Path outputDirectory, RunOptions run)
       throws Exception {
+    Path beforeProject = before.dir();
+    Path afterProject = after.dir();
 
     validateInputs(pair, beforeProject, afterProject, outputDirectory, run);
 
@@ -36,8 +42,8 @@ public final class PairCallGraphRunner {
 
     /*
      * Convert the common RunOptions into the immutable options used by
-     * VersionRunner. These options, including the build tool, are reused
-     * for both versions.
+     * VersionRunner, reused for both versions. The build tool is the
+     * checkouts' own, taken from the pair.
      */
     TestRunOptions testOptions = run.toOptions(includes);
 
@@ -46,22 +52,10 @@ public final class PairCallGraphRunner {
     Path afterOutput = outputDirectory.resolve("after");
 
     VersionRunner.run(
-        "before",
-        pair.parentSha(),
-        beforeProject,
-        beforeOutput,
-        run.repeats,
-        testOptions,
-        beforeSources);
+        "before", pair.parentSha(), before, beforeOutput, run.repeats, testOptions, beforeSources);
 
     VersionRunner.run(
-        "after",
-        pair.childSha(),
-        afterProject,
-        afterOutput,
-        run.repeats,
-        testOptions,
-        afterSources);
+        "after", pair.childSha(), after, afterOutput, run.repeats, testOptions, afterSources);
 
     Path beforeGraph = beforeOutput.resolve("callgraph.json");
 
@@ -117,16 +111,6 @@ public final class PairCallGraphRunner {
 
     if (pair.childSha() == null || pair.childSha().isBlank()) {
       throw new UsageException("commit pair has no child SHA");
-    }
-
-    /*
-     * A build tool must be supplied explicitly. Both versions will use
-     * this same tool.
-     */
-    BuildTool buildTool = BuildTool.parse(run.buildTool);
-
-    if (buildTool == BuildTool.AUTO) {
-      throw new UsageException("--build-tool must be explicitly " + "maven or gradle");
     }
   }
 

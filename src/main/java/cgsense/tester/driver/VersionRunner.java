@@ -1,43 +1,38 @@
 package cgsense.tester.driver;
 
+import cgsense.repo.Checkout;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/*VersionRunner is the coordinator for one version. It doesn't do the hard work itself; it calls the other classes in the right order and prints progress:
-
-detect the build tool
-run the tests N times (TestRunner)
-build the call graph from all runs (GraphBuilder)
-write it to disk (VersionGraph)
-print warnings and a summary*/
-
-/*VersionCommand.run
-  └─ VersionRunner.run
-        ├─ BuildTool.resolve + withBuildTool           → MAVEN
-        ├─ repeat N times:
-        │     create runs/<i>/
-        │     TestRunner.runTests(...)                 → RunResult (exit, dumps, reports)
-        ├─ GraphBuilder.build(..., runs, sources)      → VersionGraph
-        ├─ graph.write(outDir)                         → callgraph.json + summary.json
-        ├─ warnings (runs without tests / empty graph)
-        └─ print summary, return graph
-*/
+/**
+ * VersionRunner is the coordinator for one version.
+ * 
+ * run the tests N times (Checkout.runTests, with the checkout's build tool)
+ * build the call graph from all runs (GraphBuilder)
+ * write it to disk (VersionGraph)
+ * print warnings and a summary
+ * 
+ */
 
 public final class VersionRunner {
 
-  private VersionRunner() {}
+  private VersionRunner() {
+  }
 
   /**
-   * Runs the project's tests under the dynamic-callgraph Java agent and writes {@code
+   * Runs the project's tests under the dynamic-callgraph Java agent and writes
+   * {@code
    * callgraph.json} into {@code outDir}.
    *
-   * @param label label recorded in the graph, such as "before" or "after"
-   * @param commit commit SHA recorded as metadata; it is not checked out or verified
-   * @param projectDir existing checked-out project directory
-   * @param outDir directory where graph data and run data are written
+   * @param label   label recorded in the graph, such as "before" or "after"
+   * @param commit  commit SHA recorded as metadata; it is not checked out or
+   *                verified
+   * @param project the checked-out project; its tests run wherever it is checked
+   *                out
+   * @param outDir  directory where graph data and run data are written
    * @param repeats number of times to run the tests
    * @param options test execution and instrumentation options
    * @param sources information about the project's source directories
@@ -46,34 +41,20 @@ public final class VersionRunner {
   public static VersionGraph run(
       String label,
       String commit,
-      Path projectDir,
+      Checkout project,
       Path outDir,
       int repeats,
       TestRunOptions options,
       ProjectSources sources)
       throws IOException, InterruptedException {
+    Path projectDir = project.dir();
 
-    BuildTool buildTool =
-        options.buildTool.resolve(
-            projectDir); // If the build tool is AUTO, we detect it from the project directory. If
-    // it's MAVEN or GRADLE, we just use that.
-    options =
-        options.withBuildTool(
-            buildTool); // We create a new TestRunOptions with the resolved build tool. This ensures
-    // that all subsequent test runs use the correct build tool, whether it was
-    // specified by the user or detected automatically.
+    System.out.printf(
+        "[dyncg] %s: build tool %s%n", label, project.commit().buildTool().name().toLowerCase());
 
-    System.out.printf("[dyncg] %s: build tool %s%n", label, buildTool.name().toLowerCase());
+    List<RunResult> runs = new ArrayList<>();
 
-    List<RunResult> runs =
-        new ArrayList<>(); // We will store the results of each test run in this list. Each
-    // RunResult contains information about the exit code, duration, and any
-    // dumps or reports generated during the run.
-
-    for (int index = 0;
-        index < repeats;
-        index++) { // We loop over the number of repeats specified by the user. Each iteration
-      // represents one complete test run under the agent.
+    for (int index = 0; index < repeats; index++) {
       System.out.printf(
           "[dyncg] %s: test run %d/%d in %s%n", label, index + 1, repeats, projectDir);
 
@@ -81,12 +62,7 @@ public final class VersionRunner {
 
       Files.createDirectories(runDir);
 
-      RunResult run =
-          TestRunner
-              .runTests( // We call TestRunner.runTests to execute the tests under the agent. This
-                  // method handles the actual invocation of Maven or Gradle, sets up the
-                  // Java agent, and collects the results.
-                  projectDir, runDir, index, options);
+      RunResult run = project.runTests(runDir, index, options);
 
       System.out.printf(
           "[dyncg] %s: run %d exit=%s timed_out=%s %ss " + "dumps=%d report_dirs=%d%n",
@@ -101,25 +77,10 @@ public final class VersionRunner {
       runs.add(run);
     }
 
-    VersionGraph graph =
-        GraphBuilder
-            .build( // After all test runs are complete, we call GraphBuilder.build to construct the
-                // call graph from the collected data. This method analyzes the dumps and
-                // reports generated during the test runs and produces a VersionGraph object
-                // that represents the call graph for this version of the project.
-                label, commit, projectDir, options.includes, runs, sources);
+    VersionGraph graph = GraphBuilder.build(label, commit, projectDir, options.includes, runs, sources);
+    Path graphPath = graph.write(outDir);
 
-    Path graphPath =
-        graph.write(
-            outDir); // We write the generated call graph to disk in the specified output directory.
-    // The graph is typically written as a JSON file named callgraph.json, along
-    // with any associated metadata.
-
-    long runsWithoutTests =
-        ((Number) graph.stats().get("runs_without_tests"))
-            .longValue(); // We check how many of the test runs did not produce any test results.
-    // This can happen if the build or test setup failed, and we want to warn
-    // the user about it.
+    long runsWithoutTests = ((Number) graph.stats().get("runs_without_tests")).longValue();
 
     if (runsWithoutTests > 0) {
       for (RunResult run : runs) {
@@ -134,17 +95,19 @@ public final class VersionRunner {
           label, runsWithoutTests, runs.size());
     }
 
-    long tests =
-        ((Number) graph.stats().get("tests"))
-            .longValue(); // We check how many tests were actually executed across all runs. If this
+    long tests = ((Number) graph.stats().get("tests"))
+        .longValue();
+    // We check how many tests were actually executed across all runs. If this
     // number is greater than
-    // zero but the number of nodes in the call graph is zero, it indicates that the agent did not
-    // record any method calls, which could be due to misconfiguration or instrumentation issues.
-    long nodes =
-        ((Number) graph.stats().get("nodes"))
-            .longValue(); // We check how many nodes (methods) were recorded in the call graph. If
+    // zero but the number of nodes in the call graph is zero, it indicates that the
+    // agent did not
+    // record any method calls, which could be due to misconfiguration or
+    // instrumentation issues.
+    long nodes = ((Number) graph.stats().get("nodes")).longValue();
+    // We check how many nodes (methods) were recorded in the call graph. If
     // this number is zero, it means that no
-    // method calls were captured during the test runs, which is unexpected if tests were actually
+    // method calls were captured during the test runs, which is unexpected if tests
+    // were actually
     // executed.
 
     if (tests > 0 && nodes == 0) {

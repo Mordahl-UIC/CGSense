@@ -16,7 +16,7 @@ public final class FileUtil {
   }
 
   /** Deletes a file or directory tree if it exists. */
-  static void deleteRecursively(Path path) throws IOException {
+  public static void deleteRecursively(Path path) throws IOException {
     if (!Files.exists(path, java.nio.file.LinkOption.NOFOLLOW_LINKS)) {
       return;
     }

@@ -2,11 +2,17 @@ package cgsense.mining;
 
 import cgsense.app.DataDir;
 import cgsense.app.Log;
-import cgsense.exec.BuildContainer;
+import cgsense.exec.Container;
+import cgsense.exec.Containers;
 import cgsense.io.JsonlWriter;
+import cgsense.model.BuildTool;
 import cgsense.model.ChangedFile;
+import cgsense.model.Commit;
 import cgsense.model.CommitPair;
 import cgsense.model.RepoRecord;
+import cgsense.repo.Checkout;
+import cgsense.repo.ContainerRepo;
+import cgsense.repo.Repo;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -51,6 +57,9 @@ public class CommitMiner {
   private final JsonlWriter writer;
   private static final int MAX_PAIRS_PER_REPO = 100;
 
+  /** Index of the last JDK that built a pair*/
+  private int preferredJdk = 0;
+
   /**
    * @param data where bare clones are kept; the build containers mount them read-only
    * @param writer destination for accepted pairs
@@ -58,6 +67,35 @@ public class CommitMiner {
   public CommitMiner(DataDir data, JsonlWriter writer) {
     this.data = data;
     this.writer = writer;
+  }
+
+  /**
+   * Finds a JDK that builds both commits, starting from the one that worked last.
+   * @return the JDK version, or -1 if no JDK builds both
+   */
+  private int findJdk(Repo repo, Commit parentCommit, Commit childCommit) throws IOException {
+    List<Integer> jdks = Containers.JDKS;
+    try (Checkout parent = repo.checkout(parentCommit);
+        Checkout child = repo.checkout(childCommit)) {
+      for (int tries = 0; tries < jdks.size(); tries++) {
+        int idx = (preferredJdk + tries) % jdks.size();
+        int jdk = jdks.get(idx);
+        if (parent.build(jdk) && child.build(jdk)) {
+          preferredJdk = idx;
+          return jdk;
+        }
+        if (tries + 1 < jdks.size()) {
+          LOG.info(
+              String.format(
+                  "%s..%s does not build on JDK %d, trying JDK %d",
+                  parentCommit.sha().substring(0, 7),
+                  childCommit.sha().substring(0, 7),
+                  jdk,
+                  jdks.get((preferredJdk + tries + 1) % jdks.size())));
+        }
+      }
+    }
+    return -1;
   }
 
   /** Mines one repo and returns how many pairs were written. */
@@ -68,6 +106,7 @@ public class CommitMiner {
   public int mine(String fullRepoName, String cloneUrl) {
     LOG.info(String.format("Mining %s (%s)", fullRepoName, cloneUrl));
     Path gitDir = data.clone(fullRepoName);
+    preferredJdk = 0;
 
     if (Files.exists(gitDir)) {
       LOG.info("Reusing existing clone " + gitDir);
@@ -96,11 +135,12 @@ public class CommitMiner {
     int buildFailed = 0;
     int accepted = 0;
     LOG.info("Starting build container for " + fullRepoName);
-    try (BuildContainer box = new BuildContainer(DataDir.slug(fullRepoName), gitDir);
+    try (Container box = Containers.repo(DataDir.slug(fullRepoName), gitDir).start();
         Repository repo = new FileRepositoryBuilder().setGitDir(gitDir.toFile()).build();
         RevWalk walk = new RevWalk(repo);
         DiffFormatter diff = new DiffFormatter(DisabledOutputStream.INSTANCE)) {
 
+      Repo builds = new ContainerRepo(box);
       ObjectId head = repo.resolve(Constants.HEAD);
       if (head == null) {
         LOG.warning(String.format("%s is empty (no HEAD); skipping", fullRepoName));
@@ -142,7 +182,11 @@ public class CommitMiner {
                 files.get().size(),
                 mainJavaLines(files.get()),
                 child.getShortMessage()));
-        int javaVersion = box.buildPair(parent.name(), child.name());
+
+        BuildTool tool =
+            getRootFiles(repo, child).contains("gradlew") ? BuildTool.GRADLE : BuildTool.MAVEN;
+        int javaVersion =
+            findJdk(builds, new Commit(parent.name(), tool), new Commit(child.name(), tool));
         if (javaVersion <= 0) {
           buildFailed++;
           LOG.info(
@@ -150,7 +194,7 @@ public class CommitMiner {
           continue;
         }
 
-        String buildTool = getRootFiles(repo, child).contains("gradlew") ? "gradle" : "maven";
+        String buildTool = tool.name().toLowerCase();
         CommitPair pair =
             new CommitPair(
                 fullRepoName, parent.name(), child.name(), javaVersion, buildTool, files.get());

@@ -1,5 +1,6 @@
 package cgsense.tester.driver;
 
+import cgsense.model.BuildTool;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -16,7 +17,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /** Running a project's tests under the agent. */
-final class TestRunner {
+public final class TestRunner {
   /** Plugins that are irrelevant to running tests and often break on historical commits. */
   static final List<String> SKIP_PROPERTIES =
       List.of(
@@ -38,6 +39,11 @@ final class TestRunner {
   private TestRunner() {}
 
   static String agentOption(TestRunOptions options, Path dumpsDir) {
+    return agentOption(options, options.agentJar.toString(), dumpsDir.toString());
+  }
+
+  /** The agent option with the jar and dump paths as the test JVM sees them. */
+  public static String agentOption(TestRunOptions options, String agentJar, String dumpsDir) {
     List<String> parts = new ArrayList<>();
     parts.add("include=" + String.join(":", options.includes));
     parts.add("out=" + dumpsDir);
@@ -45,7 +51,7 @@ final class TestRunner {
     if (!options.excludes.isEmpty()) {
       parts.add("exclude=" + String.join(":", options.excludes));
     }
-    String value = "-javaagent:" + options.agentJar + "=" + String.join(",", parts);
+    String value = "-javaagent:" + agentJar + "=" + String.join(",", parts);
     if (value.chars().anyMatch(Character::isWhitespace)) {
       throw new UsageException("agent option must not contain whitespace: " + value);
     }
@@ -81,10 +87,10 @@ final class TestRunner {
    * Gradle init script that records each test's class, method and outcome (see
    * test-listener.gradle).
    */
-  static final String GRADLE_LISTENER = "dyncg-test-listener.gradle";
+  public static final String GRADLE_LISTENER = "dyncg-test-listener.gradle";
 
   /** Where that listener writes, one JSON object per test case. */
-  static final String GRADLE_TEST_LOG = "gradle-tests.jsonl";
+  public static final String GRADLE_TEST_LOG = "gradle-tests.jsonl";
 
   static List<String> gradleCommand(Path projectDir, TestRunOptions options, Path initScript) {
     List<String> command = new ArrayList<>();
@@ -135,27 +141,29 @@ final class TestRunner {
     return command;
   }
 
-  static List<String> buildCommand(Path projectDir, TestRunOptions options, Path initScript) {
-    return options.buildTool == BuildTool.GRADLE
+  public static List<String> buildCommand(
+      Path projectDir, BuildTool tool, TestRunOptions options, Path initScript) {
+    return tool == BuildTool.GRADLE
         ? gradleCommand(projectDir, options, initScript)
         : mavenCommand(options);
   }
 
   /** Runs the test suite once with the agent attached and collects its raw outputs in runDir. */
-  static RunResult runTests(Path projectDir, Path runDir, int index, TestRunOptions options)
+  public static RunResult runTests(
+      Path projectDir, Path runDir, int index, BuildTool tool, TestRunOptions options)
       throws IOException, InterruptedException {
     Path dumpsDir = runDir.resolve("dumps");
     Path reportsCopy = runDir.resolve("surefire-reports");
     FileUtil.deleteRecursively(dumpsDir);
     FileUtil.deleteRecursively(reportsCopy);
     Files.createDirectories(dumpsDir);
-    for (Path stale : SurefireReports.reportDirs(projectDir, options.buildTool)) {
+    for (Path stale : SurefireReports.reportDirs(projectDir, tool)) {
       FileUtil.deleteRecursively(stale);
     }
 
     Path testLog = null;
     Path initScript = null;
-    if (options.buildTool == BuildTool.GRADLE) {
+    if (tool == BuildTool.GRADLE) {
       testLog = runDir.resolve(GRADLE_TEST_LOG);
       Files.deleteIfExists(testLog);
       initScript = runDir.resolve(GRADLE_LISTENER);
@@ -164,7 +172,7 @@ final class TestRunner {
         Files.copy(in, initScript, StandardCopyOption.REPLACE_EXISTING);
       }
     }
-    List<String> command = buildCommand(projectDir, options, initScript);
+    List<String> command = buildCommand(projectDir, tool, options, initScript);
     ProcessBuilder builder =
         new ProcessBuilder(command).directory(projectDir.toFile()).redirectErrorStream(true);
     Map<String, String> env = builder.environment();
@@ -218,7 +226,7 @@ final class TestRunner {
     double duration = round((System.nanoTime() - started) / 1e9, 1);
 
     List<Path> copied = new ArrayList<>();
-    for (Path directory : SurefireReports.reportDirs(projectDir, options.buildTool)) {
+    for (Path directory : SurefireReports.reportDirs(projectDir, tool)) {
       Path relative = projectDir.relativize(directory);
       Path destination = reportsCopy.resolve(relative.toString());
       FileUtil.copyTree(directory, destination);
@@ -228,7 +236,33 @@ final class TestRunner {
         index, runDir, command, exitCode, timedOut, duration, dumpFiles(dumpsDir), copied, testLog);
   }
 
-  private static List<Path> dumpFiles(Path dumpsDir) throws IOException {
+  /**
+   * The result of a run done elsewhere whose outputs were copied into {@code runDir}: dumps in
+   * dumps/, reports in surefire-reports/, and for Gradle the test log.
+   */
+  public static RunResult collect(
+      int index,
+      Path runDir,
+      List<String> command,
+      Integer exitCode,
+      boolean timedOut,
+      long elapsedNanos,
+      BuildTool tool)
+      throws IOException {
+    Path testLog = tool == BuildTool.GRADLE ? runDir.resolve(GRADLE_TEST_LOG) : null;
+    return new RunResult(
+        index,
+        runDir,
+        command,
+        exitCode,
+        timedOut,
+        round(elapsedNanos / 1e9, 1),
+        dumpFiles(runDir.resolve("dumps")),
+        SurefireReports.copiedReportDirs(runDir.resolve("surefire-reports")),
+        testLog);
+  }
+
+  static List<Path> dumpFiles(Path dumpsDir) throws IOException {
     List<Path> files = new ArrayList<>();
     if (Files.isDirectory(dumpsDir)) {
       try (DirectoryStream<Path> stream = Files.newDirectoryStream(dumpsDir, "dyncg-*.json")) {

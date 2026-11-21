@@ -33,6 +33,10 @@ public final class Log {
     Handler handler = new ConsoleHandler();
     handler.setLevel(Level.ALL);
     handler.setFormatter(new OneLine());
+
+    System.out.printf("Log level: %s\n", level);
+
+    
     root.addHandler(handler);
     root.setLevel(Level.INFO);
 

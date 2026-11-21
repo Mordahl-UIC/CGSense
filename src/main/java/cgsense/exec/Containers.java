@@ -1,6 +1,7 @@
 package cgsense.exec;
 
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * The containers cgsense runs. Callers add their own setup before
@@ -11,6 +12,7 @@ public final class Containers {
   private static final String M2_VOLUME = "cgsense-m2";
   private static final String GRADLE_VOLUME = "cgsense-gradle";
   public static final String REPO_MIRROR = "/mirror";
+  public static final List<Integer> JDKS = List.of(26, 25, 21, 17, 11, 8);
 
   private Containers() {
   }

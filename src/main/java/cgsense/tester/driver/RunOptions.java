@@ -19,7 +19,6 @@ public final class RunOptions {
   Integer testTimeout;
   Integer timeout;
   boolean offline;
-  String buildTool;
   int flush;
   Path agentJar;
   String mvn;
@@ -40,7 +39,6 @@ public final class RunOptions {
         .addOption(
             value("test-timeout", "seconds", "seconds per forked test JVM (surefire.timeout)"))
         .addOption(value("timeout", "seconds", "seconds per build invocation"))
-        .addOption(value("build-tool", "tool", "auto, maven or gradle (default: auto)"))
         .addOption(
             value("flush", "seconds", "agent snapshot interval in seconds (0 = only at exit)"))
         .addOption(
@@ -61,7 +59,6 @@ public final class RunOptions {
     run.testTimeout = cl.hasOption("test-timeout") ? intValue(cl, "test-timeout", 0) : null;
     run.timeout = cl.hasOption("timeout") ? intValue(cl, "timeout", 0) : null;
     run.offline = true;
-    run.buildTool = cl.getOptionValue("build-tool", "auto");
     run.flush = intValue(cl, "flush", 60);
     run.agentJar = path(cl, "agent-jar");
     run.mvn = cl.getOptionValue("mvn", "mvn");
@@ -69,12 +66,18 @@ public final class RunOptions {
     return run;
   }
 
-  public TestRunOptions toOptions(List<String> includeList) {
+  /** --agent-jar, or the agent next to the driver; it must exist. */
+  public Path resolvedAgentJar() {
     Path agent = agentJar != null ? FileUtil.abs(agentJar) : TestRunOptions.defaultAgentJar();
     if (!Files.isRegularFile(agent)) {
       throw new UsageException(
           "agent jar not found: " + agent + " (build it with: mvn -B package)");
     }
+    return agent;
+  }
+
+  public TestRunOptions toOptions(List<String> includeList) {
+    Path agent = resolvedAgentJar();
     if (repeats < 1) {
       throw new UsageException("--repeats must be at least 1");
     }
@@ -89,8 +92,7 @@ public final class RunOptions {
         offline,
         flush,
         mvn,
-        gradle,
-        BuildTool.parse(buildTool));
+        gradle);
   }
 
   // ---- option definitions and typed values, shared by all commands
