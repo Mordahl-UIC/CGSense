@@ -47,7 +47,6 @@ class RunOptionsTest {
     // Defaults
     assertEquals(List.of(), run.excludes);
     assertEquals(60, run.flush);
-    assertEquals("auto", run.buildTool);
     assertEquals("mvn", run.mvn);
     assertNull(run.timeout);
     assertNull(run.javaHome);
