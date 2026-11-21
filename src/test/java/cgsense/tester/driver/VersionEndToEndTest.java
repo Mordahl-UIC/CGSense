@@ -63,6 +63,8 @@ final class VersionEndToEndTest {
             "1",
             "--java-home",
             System.getProperty("java.home"),
+            "--build-tool",
+            "maven",
             "--agent-jar",
             agentJar.toString());
 
@@ -85,6 +87,8 @@ final class VersionEndToEndTest {
             "1",
             "--java-home",
             System.getProperty("java.home"),
+            "--build-tool",
+            "maven",
             "--agent-jar",
             agentJar.toString());
 

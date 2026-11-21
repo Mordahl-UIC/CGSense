@@ -27,6 +27,8 @@ class RunOptionsTest {
             new VersionCommand(),
             "--project-dir",
             "project",
+            "--build-tool",
+            "maven",
             "--out",
             "output",
             "--label",
@@ -55,7 +57,16 @@ class RunOptionsTest {
   @Test
   void rejectsBadNumbers() throws ParseException {
     CommandLine cl =
-        parse(new VersionCommand(), "--project-dir", "p", "--out", "o", "--repeats", "two");
+        parse(
+            new VersionCommand(),
+            "--project-dir",
+            "p",
+            "--out",
+            "o",
+            "--build-tool",
+            "maven",
+            "--repeats",
+            "two");
     UsageException error = assertThrows(UsageException.class, () -> RunOptions.from(cl));
     assertEquals("--repeats: not a number: 'two'", error.getMessage());
   }

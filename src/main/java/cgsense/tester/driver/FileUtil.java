@@ -50,7 +50,7 @@ public final class FileUtil {
     }
   }
 
-  static void copyTree(Path source, Path target) throws IOException {
+  public static void copyTree(Path source, Path target) throws IOException {
     Files.walkFileTree(
         source,
         new SimpleFileVisitor<Path>() {

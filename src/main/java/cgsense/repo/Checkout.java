@@ -30,4 +30,9 @@ public interface Checkout extends AutoCloseable {
   /** Removes the checkout. */
   @Override
   void close() throws IOException;
+
+  /** A project already checked out at {@code dir} on this machine; closing it leaves it there. */
+  static Checkout local(Commit commit, Path dir) {
+    return new LocalCheckout(commit, dir);
+  }
 }
