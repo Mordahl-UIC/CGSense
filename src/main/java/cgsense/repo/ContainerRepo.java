@@ -241,6 +241,10 @@ public final class ContainerRepo implements Repo {
       }
       Path hostDir = dir();
 
+      // the build step only resolved plugins up to test-compile, so surefire and the
+      // test runtime may still be missing
+      options = options.online();
+
       // Built against the host copy (which decides e.g. whether gradlew exists), then
       // moved over.
       List<String> command = TestRunner.buildCommand(hostDir, this.commit.buildTool(), options, Path.of(GRADLE_LISTENER)).stream()

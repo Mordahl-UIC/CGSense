@@ -92,6 +92,22 @@ public final class TestRunOptions {
         gradle);
   }
 
+  /** Returns a new TestRunOptions that lets the build tool download what its cache lacks. */
+  public TestRunOptions online() {
+    return new TestRunOptions(
+        agentJar,
+        includes,
+        excludes,
+        javaHome,
+        tests,
+        testTimeoutSeconds,
+        timeoutSeconds,
+        false,
+        flushSeconds,
+        mvn,
+        gradle);
+  }
+
 
   /** Returns the default path to the dyncg-agent.jar file. */
   static Path defaultAgentJar() {
