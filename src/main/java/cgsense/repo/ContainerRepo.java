@@ -29,13 +29,13 @@ import java.util.stream.Collectors;
  * A {@link Repo} in a container made by {@link Containers#repo}. The bare clone at {@link
  * Containers#REPO_MIRROR} is only read;
  *
- * All work is a bash
+ * <p>All work is a bash
  *
- * script sent with {@link Container#sh}, and files come back with {@link Container#copyOut}.
+ * <p>script sent with {@link Container#sh}, and files come back with {@link Container#copyOut}.
  *
- * The container belongs to the caller, who closes it.
+ * <p>The container belongs to the caller, who closes it.
  *
- * Running tests needs the container to be started {@link #withTools}.
+ * <p>Running tests needs the container to be started {@link #withTools}.
  */
 public final class ContainerRepo implements Repo {
   private static final Logger LOG = Log.get(ContainerRepo.class);
