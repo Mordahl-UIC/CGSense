@@ -1,12 +1,18 @@
 package cgsense.tester.driver;
 
+import cgsense.repo.Checkout;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Runs tests and generates a dynamic call graph for one already checked-out project version. */
+/**
+ * VersionRunner is the coordinator for one version.
+ *
+ * <p>run the tests N times (Checkout.runTests, with the checkout's build tool) build the call graph
+ * from all runs (GraphBuilder) write it to disk (VersionGraph) print warnings and a summary
+ */
 public final class VersionRunner {
 
   private VersionRunner() {}
@@ -17,7 +23,7 @@ public final class VersionRunner {
    *
    * @param label label recorded in the graph, such as "before" or "after"
    * @param commit commit SHA recorded as metadata; it is not checked out or verified
-   * @param projectDir existing checked-out project directory
+   * @param project the checked-out project; its tests run wherever it is checked out
    * @param outDir directory where graph data and run data are written
    * @param repeats number of times to run the tests
    * @param options test execution and instrumentation options
@@ -27,17 +33,16 @@ public final class VersionRunner {
   public static VersionGraph run(
       String label,
       String commit,
-      Path projectDir,
+      Checkout project,
       Path outDir,
       int repeats,
       TestRunOptions options,
       ProjectSources sources)
       throws IOException, InterruptedException {
+    Path projectDir = project.dir();
 
-    BuildTool buildTool = options.buildTool.resolve(projectDir);
-    options = options.withBuildTool(buildTool);
-
-    System.out.printf("[dyncg] %s: build tool %s%n", label, buildTool.name().toLowerCase());
+    System.out.printf(
+        "[dyncg] %s: build tool %s%n", label, project.commit().buildTool().name().toLowerCase());
 
     List<RunResult> runs = new ArrayList<>();
 
@@ -49,7 +54,7 @@ public final class VersionRunner {
 
       Files.createDirectories(runDir);
 
-      RunResult run = TestRunner.runTests(projectDir, runDir, index, options);
+      RunResult run = project.runTests(runDir, index, options);
 
       System.out.printf(
           "[dyncg] %s: run %d exit=%s timed_out=%s %ss " + "dumps=%d report_dirs=%d%n",
@@ -66,7 +71,6 @@ public final class VersionRunner {
 
     VersionGraph graph =
         GraphBuilder.build(label, commit, projectDir, options.includes, runs, sources);
-
     Path graphPath = graph.write(outDir);
 
     long runsWithoutTests = ((Number) graph.stats().get("runs_without_tests")).longValue();
@@ -85,7 +89,18 @@ public final class VersionRunner {
     }
 
     long tests = ((Number) graph.stats().get("tests")).longValue();
+    // We check how many tests were actually executed across all runs. If this
+    // number is greater than
+    // zero but the number of nodes in the call graph is zero, it indicates that the
+    // agent did not
+    // record any method calls, which could be due to misconfiguration or
+    // instrumentation issues.
     long nodes = ((Number) graph.stats().get("nodes")).longValue();
+    // We check how many nodes (methods) were recorded in the call graph. If
+    // this number is zero, it means that no
+    // method calls were captured during the test runs, which is unexpected if tests
+    // were actually
+    // executed.
 
     if (tests > 0 && nodes == 0) {
       System.out.printf(

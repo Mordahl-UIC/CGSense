@@ -5,6 +5,10 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.List;
 
+/*
+ * TestRunOptions is a frozen bundle of everything needed to run the tests once
+ */
+
 /** How to run a project's tests under the agent. Immutable. */
 public final class TestRunOptions {
   final Path agentJar;
@@ -25,7 +29,6 @@ public final class TestRunOptions {
   final int flushSeconds;
   final String mvn;
   final String gradle;
-  final BuildTool buildTool;
 
   TestRunOptions(
       Path agentJar,
@@ -38,8 +41,7 @@ public final class TestRunOptions {
       boolean offline,
       int flushSeconds,
       String mvn,
-      String gradle,
-      BuildTool buildTool) {
+      String gradle) {
     this.agentJar = agentJar;
     this.includes = List.copyOf(includes);
     this.excludes = List.copyOf(excludes);
@@ -51,9 +53,14 @@ public final class TestRunOptions {
     this.flushSeconds = flushSeconds;
     this.mvn = mvn;
     this.gradle = gradle;
-    this.buildTool = buildTool;
   }
 
+  /** Seconds per build invocation; null = no limit. */
+  public Integer timeoutSeconds() {
+    return timeoutSeconds;
+  }
+
+  /** Returns a new TestRunOptions with the given includes. */
   TestRunOptions withIncludes(List<String> newIncludes) {
     return new TestRunOptions(
         agentJar,
@@ -66,10 +73,10 @@ public final class TestRunOptions {
         offline,
         flushSeconds,
         mvn,
-        gradle,
-        buildTool);
+        gradle);
   }
 
+  //    TestRunOptions withExcludes(List<String> newExcludes) {
   TestRunOptions withJavaHome(Path newJavaHome) {
     return new TestRunOptions(
         agentJar,
@@ -82,11 +89,11 @@ public final class TestRunOptions {
         offline,
         flushSeconds,
         mvn,
-        gradle,
-        buildTool);
+        gradle);
   }
 
-  TestRunOptions withBuildTool(BuildTool newBuildTool) {
+  /** Returns a new TestRunOptions that lets the build tool download what its cache lacks. */
+  public TestRunOptions online() {
     return new TestRunOptions(
         agentJar,
         includes,
@@ -95,17 +102,13 @@ public final class TestRunOptions {
         tests,
         testTimeoutSeconds,
         timeoutSeconds,
-        offline,
+        false,
         flushSeconds,
         mvn,
-        gradle,
-        newBuildTool);
+        gradle);
   }
 
-  /**
-   * The agent jar next to this driver: {@code target/cgsense-*.jar} (or {@code target/classes}) →
-   * {@code target/cgsense-agent.jar}. The system property {@code cgsense.agent.jar} overrides it.
-   */
+  /** Returns the default path to the dyncg-agent.jar file. */
   static Path defaultAgentJar() {
     String override = System.getProperty("cgsense.agent.jar");
     if (override != null) {

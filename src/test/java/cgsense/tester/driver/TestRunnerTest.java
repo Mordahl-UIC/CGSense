@@ -17,7 +17,7 @@ class TestRunnerTest {
     assertEquals(0.33, TestRunner.round(1.0 / 3, 2));
   }
 
-  private static TestRunOptions options(BuildTool tool, String tests) {
+  private static TestRunOptions options(String tests) {
     return new TestRunOptions(
         Path.of("agent.jar"),
         List.of("sample/"),
@@ -29,8 +29,7 @@ class TestRunnerTest {
         false,
         60,
         "mvn",
-        "gradle",
-        tool);
+        "gradle");
   }
 
   @Test
@@ -38,8 +37,7 @@ class TestRunnerTest {
     Path wrapper = dir.resolve("gradlew");
     Files.writeString(wrapper, "#!/bin/sh\n");
     Path init = dir.resolve("init.gradle");
-    List<String> command =
-        TestRunner.gradleCommand(dir, options(BuildTool.GRADLE, "FooTest,Bar*"), init);
+    List<String> command = TestRunner.gradleCommand(dir, options("FooTest,Bar*"), init);
     assertEquals(
         List.of(
             "sh",

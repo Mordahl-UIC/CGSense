@@ -6,6 +6,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
+/*
+ * Json: one shared Jackson ObjectMapper for the whole driver (reading dumps, reports, callgraph.json;
+ * writing callgraph/summary/diff). compact() = one-line JSON, pretty() = indented,
+ * writePretty() = pretty JSON to a file. Map keys keep insertion order; nulls are written.
+ */
+
 /** The shared JSON mapper. Maps are written in insertion order and nulls are kept. */
 public final class Json {
   static final ObjectMapper MAPPER = new ObjectMapper();

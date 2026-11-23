@@ -66,7 +66,9 @@ mvn -B -pl driver -am \
   test
 ```
 
-Analyzed projects always run offline using dependencies already present in the local Maven or Gradle cache. A clean environment needs a network-enabled build outside dyncg to populate that cache first.
+`dyncg version` runs the analyzed project offline, using dependencies already present in the local Maven or Gradle cache. A clean environment needs a network-enabled build outside dyncg to populate that cache first.
+
+`callgraph-pair` runs tests online inside the repo's container. Its build step only compiles (`test-compile`/`testClasses`), so surefire and test-runtime dependencies are downloaded on the first test run into the shared cache volumes.
 
 ## Generate one call graph
 

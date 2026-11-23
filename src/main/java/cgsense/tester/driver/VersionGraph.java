@@ -11,6 +11,23 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+/*
+ * VersionGraph: the finished call graph of one version (made by GraphBuilder.build()).
+ * write(outDir) produces:
+ *  - callgraph.json: full data, streamed row by row and compact (edges as arrays + *_columns
+ *    names) so millions of edges stay small and don't need extra memory.
+ *  - summary.json:   pretty, small overview (label, commit, includes, stats, brief run info).
+ * stats() returns header.stats; VersionRunner uses it for warnings and the printed stats line.
+ */
+
+/*VersionRunner.run()
+ ├─ graph = GraphBuilder.build(...)          → new VersionGraph(header, nodes, contexts, edges, aggregate)
+ ├─ graph.write(outDir)
+ │    ├─ callgraph.json   (streamed, compact, full data)   via Json.MAPPER's JsonGenerator
+ │    └─ summary.json     (pretty, header subset)          via Json.writePretty
+ ├─ graph.stats() → warnings
+ └─ print Json.compact(graph.stats())
+*/
 /** The call graph of one version, written as callgraph.json (schema version 1) and summary.json. */
 public final class VersionGraph {
   static final List<String> EDGE_COLUMNS =

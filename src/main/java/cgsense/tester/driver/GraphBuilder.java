@@ -17,18 +17,56 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
+/*VersionRunner → GraphBuilder.build(label, commit, project, includes, runs, sources)
+   └─ for each RunResult:
+        ├─ loadRun(run)
+        │    ├─ read each dump → AgentDump (broken → used:false)
+        │    ├─ jvmRole() → test-jvm / maven / gradle / other
+        │    ├─ skip build JVM if a test JVM exists
+        │    └─ addDump()  → edges, nodes, contexts by signature   ← section 2
+        └─ parse reports → testId → [TestInvocation]
+   └─ merge contexts / statuses / edges ...                         ← sections 3–4
+*/
+/*
+ * GraphBuilder: turns the agent dumps + test reports of all runs of ONE version into a VersionGraph.
+ *  1. loadRun(): per run, read dumps (skip the build JVM if a test JVM exists) and convert
+ *     local ids to signatures (addDump) -> RunGraph.
+ *  2. build(): merge all runs:
+ *     contexts (0 = unattributed, tests with status across runs, fixtures),
+ *     nodes (0 = <root>, sorted signatures + origin),
+ *     edges per context with counts per run, aggregate edges without context,
+ *     header with run info and stats.
+ *  It does not write files; VersionGraph.write() does.
+ */
+
 /** Turning agent dumps and test reports into one call graph per version. */
 public final class GraphBuilder {
   public static final String VERSION = "0.1.0";
   static final String ROOT = "<root>";
-  private static final Map<Integer, String> KIND_NAMES = Map.of(0, "none", 1, "test", 2, "fixture");
-  private static final int ACC_STATIC = 0x0008;
-  private static final int ACC_SYNTHETIC = 0x1000;
-  private static final int MAX_REPORTED_NAMES = 20;
-  private static final int MAX_TRANSFORM_FAILURES = 50;
+  private static final Map<Integer, String> KIND_NAMES =
+      Map.of(
+          0, "none", 1, "test", 2,
+          "fixture"); // the agent writes 0, 1, or 2 for the kind of a context. We turn that into a
+  // string for the graph.
+  private static final int ACC_STATIC =
+      0x0008; // the agent writes the access flags of a method. We check if the ACC_STATIC bit is
+  // set to determine if the method is static.
+  private static final int ACC_SYNTHETIC =
+      0x1000; // the agent writes the access flags of a method. We check if the ACC_SYNTHETIC bit is
+  // set to determine if the method is synthetic.
+  private static final int MAX_REPORTED_NAMES =
+      20; // when a test method is parameterized, Gradle reports it multiple times with different
+  // display names. We only keep the first 20 reported names in the graph to avoid excessive
+  // data.
+  private static final int MAX_TRANSFORM_FAILURES =
+      50; // if the agent fails to instrument many classes, we only keep the first 50 failures in
+
+  // the graph to avoid excessive data.
 
   private GraphBuilder() {}
 
+  // Each dump records the command line of the JVM that wrote it. This method guesses which kind of
+  // JVM it was
   static String jvmRole(String command) {
     if (command.contains("surefire")
         || command.contains("failsafe")
@@ -47,11 +85,22 @@ public final class GraphBuilder {
     return "other";
   }
 
+  // Convert a method's owner class, name, and descriptor into a unique signature string. This is
+  // used to identify methods in the call graph.
   static String signature(String owner, String name, String descriptor) {
     return owner.replace('/', '.') + "#" + name + descriptor;
   }
 
-  /** (context, caller, callee); context is null for "no test or fixture". */
+  /**
+   * The identity of one edge: (context, caller, callee).
+   *
+   * <p>1. context = the test or fixture that was running, or null meaning "no test was running"
+   * (shown later as <unattributed>). 2. caller = the method that made the call. 3. callee = the
+   * method that was called. equals/hashCode let it work as a HashMap key, so the same edge seen
+   * twice adds to the same count. Objects.equals is used for context because it can be null. So
+   * calculate → normalize during testA and the same call during testB are two separate edges.
+   * That's how the graph knows which test caused each call.
+   */
   static final class EdgeKey {
     final String context;
     final String caller;
@@ -82,17 +131,37 @@ public final class GraphBuilder {
 
   /** Edges of one test run, keyed by signatures. */
   static final class RunGraph {
-    final Map<EdgeKey, Long> edges = new HashMap<>();
-    final Map<String, Map<String, Object>> nodes = new HashMap<>();
+    final Map<EdgeKey, Long> edges = new HashMap<>(); // EdgeKey → count of calls
+    final Map<String, Map<String, Object>> nodes =
+        new HashMap<>(); // signature → info about the method (class, name, descriptor, static,
+
+    // synthetic)
 
     /** Context name → kind name. */
-    final Map<String, String> contexts = new HashMap<>();
+    final Map<String, String> contexts =
+        new HashMap<>(); // context name (class#method) → kind name (test, fixture, none)
 
-    final List<Map<String, Object>> dumps = new ArrayList<>();
-    final List<List<String>> transformFailures = new ArrayList<>();
-    long transformFailureCount;
-    long overflowedEdges;
+    final List<Map<String, Object>> dumps =
+        new ArrayList<>(); // info about each dump file (file name, role, used, complete, pid,
+    // java_version, classes_instrumented, edges)
+    final List<List<String>> transformFailures =
+        new ArrayList<>(); // list of [class, error] for each class that failed to be instrumented
+    // by the agent
+    long transformFailureCount; // the number of classes that failed to be instrumented by the agent
+    long overflowedEdges; // the number of edges that were dropped because the agent's internal
+    // buffer was full and could not record all method calls
   }
+
+  /*
+   * EdgeKey: the identity of one edge = (context, caller, callee).
+   *
+   * - context: the test or fixture that was running when the call happened,
+   *   or null if no test was running (shown as "<unattributed>" in the output).
+   * - equals/hashCode let EdgeKey be a HashMap key, so the same edge seen again
+   *   adds to its existing count. Objects.equals is used for context because it can be null.
+   * - Example: calculate -> normalize during testA and the same call during testB
+   *   are two separate edges. That's how the graph knows which test caused each call.
+   */
 
   static RunGraph loadRun(RunResult run) {
     RunGraph graph = new RunGraph();
@@ -110,7 +179,10 @@ public final class GraphBuilder {
         graph.dumps.add(info);
       }
     }
-    // The Maven/Gradle build JVM only counts when tests ran in-process (no test worker JVM).
+
+    // We check if any of the loaded dumps are from a test JVM. If so, we will only use the dumps
+    // from the test JVM and ignore any dumps from build JVMs (Maven or Gradle). This is because the
+    // test JVM is the one that actually runs the tests and produces the relevant call graph data.
     boolean hasTestJvm =
         loaded.stream().anyMatch(d -> jvmRole(nullToEmpty(d.command)).equals("test-jvm"));
     for (int i = 0; i < loaded.size(); i++) {
@@ -134,6 +206,18 @@ public final class GraphBuilder {
     }
     return graph;
   }
+
+  // Adds the data from a single dump file to the graph.
+  /*
+   * addDump: adds one dump file to this run's RunGraph, turning local ids into global names.
+   *  1. methods  -> signatures[id] = "pkg.Class#name(desc)"; id 0 = "<root>". Node info
+   *                 (class, method, descriptor, static, synthetic) is stored once per signature.
+   *  2. contexts -> contexts[id] = "pkg.Class#method"; id 0 stays null (= no test running,
+   *                 later "<unattributed>"). Kind 0/1/2 -> none/test/fixture.
+   *  3. edges    -> EdgeKey(context, caller, callee); merge() adds counts if the key already exists.
+   *  4. adds transform failures and overflowed edges to the run totals.
+   * Ids are local to one dump, so signatures are what lets dumps and runs be merged safely.
+   */
 
   private static void addDump(RunGraph graph, AgentDump dump, int jvm, Path dumpFile) {
     int maxMethod = 0;
@@ -191,6 +275,9 @@ public final class GraphBuilder {
     graph.overflowedEdges += dump.overflowedEdges;
   }
 
+  // Returns the final status of a test based on the statuses from multiple runs. If all runs have
+  // the same status, that status is returned. If the statuses include "passed", "failed", and
+  // "error", it is considered "flaky". Otherwise, it is considered "inconsistent".
   private static String finalStatus(List<String> runStatuses) {
     Set<String> distinct = new HashSet<>(runStatuses);
     if (distinct.size() == 1) {
@@ -201,6 +288,18 @@ public final class GraphBuilder {
     }
     return "inconsistent";
   }
+
+  // Builds a version graph from the given runs and their associated data.
+  /*
+   * Contexts = every situation an edge can happen in. Ids are given in this order:
+   *  0          "<unattributed>" (no test running; EdgeKey context null -> 0)
+   *  1..        tests: from the reports + names the agent marked as tests (sorted, so ids are stable)
+   *  then       fixtures (@BeforeEach etc.) that are not tests; they get no status
+   * For each test and each run: report found -> worst status of its cases;
+   *   agent saw it but no report -> "not_reported" (crash/timeout); neither -> "not_run".
+   * finalStatus(): all runs agree -> that status; differ but all passed/failed/error -> "flaky";
+   *   otherwise -> "inconsistent". Only the first failure is kept.
+   */
 
   public static VersionGraph build(
       String label,
@@ -215,8 +314,7 @@ public final class GraphBuilder {
     for (RunResult run : runs) {
       runGraphs.add(loadRun(run));
       Map<String, List<TestInvocation>> byTest = new HashMap<>();
-      // Gradle: dyncg's listener log (it has the methods of parameterized cases); otherwise
-      // XML.
+      // Gradle: dyncg's listener log (it has the methods of parameterized cases); otherwise XML.
       List<TestInvocation> invocations =
           run.testLog != null && Files.isRegularFile(run.testLog)
               ? SurefireReports.parseGradleTestLog(run.testLog)
@@ -296,7 +394,18 @@ public final class GraphBuilder {
       contexts.add(entry("id", contexts.size(), "name", name, "kind", "fixture"));
     }
 
-    // ---- nodes -----------------------------------------------------------------------------
+    /*
+     * Nodes: every signature that appears in some edge (sorted, so ids are stable); id 0 = "<root>".
+     *   Each node gets class/method/descriptor/static/synthetic + origin (main/test/unknown).
+     * Edges: one row per (context, caller, callee) over all runs, sorted by ids:
+     *   [context, caller, callee, runs_seen, mean_count, counts_per_run]; a run without the edge counts 0.
+     *   runs_seen < number of runs = edge not seen every run (non-deterministic).
+     * Aggregate edges: the same without context, summed per (caller, callee):
+     *   [caller, callee, runs_seen, mean_count, contexts]; (caller << 32 | callee) packs the pair into one long key.
+     * Stats: counts for the header; incomplete_dumps, transform_failures, overflowed_edges and
+     *   runs_without_tests should be 0 for a healthy run.
+     */
+
     Map<String, Map<String, Object>> nodeInfo = new HashMap<>();
     runGraphs.forEach(g -> g.nodes.forEach(nodeInfo::putIfAbsent));
     TreeSet<String> called = new TreeSet<>();
@@ -322,7 +431,7 @@ public final class GraphBuilder {
       nodes.add(node);
     }
 
-    // ---- edges per context, and aggregated over contexts ------------------------------------
+    // ---- edges: all edges seen in any run ------------------------------------------------------
     Set<EdgeKey> keys = new HashSet<>();
     runGraphs.forEach(g -> keys.addAll(g.edges.keySet()));
     List<EdgeKey> sorted = new ArrayList<>(keys);
@@ -424,6 +533,7 @@ public final class GraphBuilder {
     return new VersionGraph(header, nodes, contexts, edges, aggregate);
   }
 
+  // Returns the number of runs in which a particular edge was seen.
   private static int runsSeen(long[] counts) {
     int seen = 0;
     for (long c : counts) {
@@ -434,6 +544,7 @@ public final class GraphBuilder {
     return seen;
   }
 
+  // Returns the average number of times an edge was seen across all runs.
   private static double mean(long[] counts) {
     long sum = 0;
     for (long c : counts) {
@@ -442,10 +553,13 @@ public final class GraphBuilder {
     return TestRunner.round((double) sum / counts.length, 2);
   }
 
+  // Returns an empty string if the input value is null, otherwise returns the input value. This is
+  // used to avoid null values in certain contexts where an empty string is preferred.
   private static String nullToEmpty(String value) {
     return value == null ? "" : value;
   }
 
+  //
   private static Map<String, Object> entry(Object... keysAndValues) {
     Map<String, Object> map = new LinkedHashMap<>();
     for (int i = 0; i < keysAndValues.length; i += 2) {

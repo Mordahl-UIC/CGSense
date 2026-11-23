@@ -3,6 +3,7 @@ package cgsense.tester.driver;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import cgsense.model.BuildTool;
 import cgsense.tester.driver.SurefireReports.TestInvocation;
 import java.io.IOException;
 import java.nio.file.Files;

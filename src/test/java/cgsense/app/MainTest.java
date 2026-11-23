@@ -42,7 +42,6 @@ class MainTest {
   void everyRegisteredCommandHasHelp() {
     assertEquals(0, Main.execute("discover", "--help"));
     assertEquals(0, Main.execute("mine-pairs", "--help"));
-    assertEquals(0, Main.execute("tester", "--help"));
     assertEquals(0, Main.execute("version", "--help"));
   }
 

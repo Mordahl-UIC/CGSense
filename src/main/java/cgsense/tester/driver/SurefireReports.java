@@ -1,5 +1,6 @@
 package cgsense.tester.driver;
 
+import cgsense.model.BuildTool;
 import java.io.IOException;
 import java.nio.file.DirectoryStream;
 import java.nio.file.FileVisitResult;
@@ -24,6 +25,9 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
+/*SurefireReports finds and reads the test-result files that Maven (Surefire/Failsafe) or Gradle write. It turns them into a simple list: for each test, its status (passed,
+failed, error or skipped) and failure details. GraphBuilder attaches those statuses to the test contexts in callgraph.json.*/
+
 /** Reading per-test outcomes from Surefire/Failsafe XML reports. */
 final class SurefireReports {
   private static final Set<String> REPORT_DIR_NAMES =
@@ -39,6 +43,8 @@ final class SurefireReports {
 
   private SurefireReports() {}
 
+  /// TestInvocation is a small data container that holds the outcome of one test method invocation.
+  // It has no logic, only fields and a constructor.
   static final class TestInvocation {
     /** "&lt;class&gt;#&lt;method&gt;" at method granularity. */
     final String testId;
@@ -75,6 +81,8 @@ final class SurefireReports {
     return Files.isDirectory(copyRoot) ? findXmlReportDirs(copyRoot) : List.of();
   }
 
+  // Find Gradle report directories, skipping .git and .gradle subtrees. Only accept directories
+  // that are below build/test-results. Sort the result by path.
   private static List<Path> findGradleReportDirs(Path root) throws IOException {
     List<Path> found = new ArrayList<>();
     Files.walkFileTree(
@@ -105,6 +113,8 @@ final class SurefireReports {
     return found;
   }
 
+  // Check if the given directory is below a build/test-results path relative to the root. This is
+  // used to filter out Gradle report directories that are not in the expected location.
   private static boolean isBelowTestResults(Path root, Path dir) {
     Path relative = root.relativize(dir);
     for (int i = 0; i + 1 < relative.getNameCount(); i++) {
@@ -116,6 +126,8 @@ final class SurefireReports {
     return false;
   }
 
+  // Find report directories that are named surefire-reports or failsafe-reports, optionally
+  // requiring that their parent directory is named target. Sort the result by path.
   private static List<Path> findXmlReportDirs(Path root) throws IOException {
     List<Path> found = new ArrayList<>();
     Files.walkFileTree(
@@ -135,12 +147,16 @@ final class SurefireReports {
     return found;
   }
 
+  // Check if the given directory contains any TEST-*.xml files, which indicates that it is a test
+  // report directory. This is used to identify Surefire/Failsafe or Gradle report directories.
   private static boolean containsTestXml(Path dir) throws IOException {
     try (DirectoryStream<Path> stream = Files.newDirectoryStream(dir, "TEST-*.xml")) {
       return stream.iterator().hasNext();
     }
   }
 
+  // Find report directories that are named surefire-reports or failsafe-reports, optionally
+  // requiring that their parent directory is named target. Sort the result by path.
   private static List<Path> findReportDirs(Path root, boolean requireTargetParent)
       throws IOException {
     List<Path> found = new ArrayList<>();
@@ -173,6 +189,9 @@ final class SurefireReports {
     return found;
   }
 
+  // Parse the XML report files in the given directories and return a list of TestInvocation objects
+  // representing the outcome of each test method invocation. This method handles both
+  // Surefire/Failsafe and Gradle report formats.
   static List<TestInvocation> parse(List<Path> directories) throws IOException {
     DocumentBuilder builder = newBuilder();
     List<TestInvocation> invocations = new ArrayList<>();
@@ -202,6 +221,9 @@ final class SurefireReports {
     return invocations;
   }
 
+  // Create a TestInvocation object from a <testcase> XML element, extracting the class name, method
+  // name, status, and failure details. This method handles both passed and failed test cases, as
+  // well as skipped tests.
   private static TestInvocation invocation(Element testCase, String suiteName) {
     String className =
         testCase.hasAttribute("classname") && !testCase.getAttribute("classname").isEmpty()
@@ -236,6 +258,7 @@ final class SurefireReports {
    * that Gradle's XML reports name only by their display name.
    */
   @SuppressWarnings("unchecked")
+  /* Parse the Gradle test log file and return a list of TestInvocation objects representing the outcome of each test method invocation. This method reads the JSON lines in the log file and extracts the class name, method name, status, and failure details for each test case. */
   static List<TestInvocation> parseGradleTestLog(Path log) throws IOException {
     List<TestInvocation> invocations = new ArrayList<>();
     for (String line : Files.readAllLines(log)) {
@@ -258,6 +281,7 @@ final class SurefireReports {
     return invocations;
   }
 
+  //
   static String worst(List<String> statuses) {
     String worst = statuses.get(0);
     for (String status : statuses) {
@@ -268,10 +292,16 @@ final class SurefireReports {
     return worst;
   }
 
+  // Create a new DocumentBuilder instance with secure processing features enabled. This method
+  // configures the XML parser to prevent external entity attacks and other security vulnerabilities
+  // when parsing XML report files.
   private static String attributeOrNull(Element element, String name) {
     return element.hasAttribute(name) ? element.getAttribute(name) : null;
   }
 
+  // Get the first child element of the given parent element that has the specified tag name. If no
+  // such child exists, return null. This method is used to navigate the XML DOM tree when parsing
+  // test report files.
   private static Element firstChild(Element parent, String tag) {
     for (Node node = parent.getFirstChild(); node != null; node = node.getNextSibling()) {
       if (node instanceof Element && ((Element) node).getTagName().equals(tag)) {
@@ -281,6 +311,9 @@ final class SurefireReports {
     return null;
   }
 
+  // Get all child elements of the given parent element that have the specified tag name. If no such
+  // children exist, return an empty list. This method is used to navigate the XML DOM tree when
+  // parsing test report files.
   private static List<Element> children(Element parent, String tag) {
     List<Element> result = new ArrayList<>();
     for (Node node = parent.getFirstChild(); node != null; node = node.getNextSibling()) {
@@ -291,6 +324,7 @@ final class SurefireReports {
     return result;
   }
 
+  /* Create a new DocumentBuilder instance with secure processing features enabled. This method configures the XML parser to prevent external entity attacks and other security vulnerabilities when parsing XML report files.*/
   private static DocumentBuilder newBuilder() {
     try {
       DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
