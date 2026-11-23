@@ -10,19 +10,16 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Generates call graphs for an already-checked-out commit pair and then
- * generates the call-graph
+ * Generates call graphs for an already-checked-out commit pair and then generates the call-graph
  * diff.
  *
- * <p>
- * This class does not check out commits; it gets them as {@link Checkout}s.
+ * <p>This class does not check out commits; it gets them as {@link Checkout}s.
  */
 
 //
 public final class PairCallGraphRunner {
 
-  private PairCallGraphRunner() {
-  }
+  private PairCallGraphRunner() {}
 
   public static void run(
       CommitPair pair, Checkout before, Checkout after, Path outputDirectory, RunOptions run)

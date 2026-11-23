@@ -2,7 +2,6 @@ package cgsense.exec;
 
 import cgsense.app.Log;
 import cgsense.tester.driver.FileUtil;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -13,9 +12,7 @@ import java.util.Map;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-/**
- * A long-running Docker container that work is sent into.
- */
+/** A long-running Docker container that work is sent into. */
 public final class Container implements AutoCloseable {
   private static final Logger LOG = Log.get(Container.class);
 
@@ -57,9 +54,7 @@ public final class Container implements AutoCloseable {
       return this;
     }
 
-    /**
-     * Copies a host file or directory to containerPath once the container is up.
-     */
+    /** Copies a host file or directory to containerPath once the container is up. */
     public Builder copyIn(Path host, String containerPath) {
       setup.add(box -> box.copyIn(host, containerPath));
       return this;
@@ -71,10 +66,7 @@ public final class Container implements AutoCloseable {
       return this;
     }
 
-    /**
-     * Runs the container and its setup, in order; removes it again if any step
-     * fails.
-     */
+    /** Runs the container and its setup, in order; removes it again if any step fails. */
     public Container start() throws IOException {
       if (image == null) {
         throw new IllegalStateException("no image for container " + name);
@@ -134,7 +126,8 @@ public final class Container implements AutoCloseable {
 
   /** Copies a host file or directory to exactly containerPath, replacing it. */
   public void copyIn(Path host, String containerPath) throws IOException {
-    CommandResult prep = sh("rm -rf " + quote(containerPath) + " && mkdir -p " + quote(parent(containerPath)));
+    CommandResult prep =
+        sh("rm -rf " + quote(containerPath) + " && mkdir -p " + quote(parent(containerPath)));
     if (!prep.ok()) {
       throw new IOException(String.format("preparing %s failed: %s", containerPath, prep.output()));
     }
@@ -157,9 +150,7 @@ public final class Container implements AutoCloseable {
     }
   }
 
-  /**
-   * Copies a container file or directory to exactly {@code host}, replacing it.
-   */
+  /** Copies a container file or directory to exactly {@code host}, replacing it. */
   public void copyOut(String containerPath, Path host) throws IOException {
     FileUtil.deleteRecursively(host);
     Path parent = host.toAbsolutePath().getParent();
@@ -181,8 +172,7 @@ public final class Container implements AutoCloseable {
   }
 
   /**
-   * Quotes {@code s} as a single bash word. Every value put into a script must go
-   * through this: a
+   * Quotes {@code s} as a single bash word. Every value put into a script must go through this: a
    * space splits it, and a newline ends the command.
    */
   public static String quote(String s) {

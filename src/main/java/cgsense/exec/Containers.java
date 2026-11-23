@@ -3,10 +3,7 @@ package cgsense.exec;
 import java.nio.file.Path;
 import java.util.List;
 
-/**
- * The containers cgsense runs. Callers add their own setup before
- * {@code start()}.
- */
+/** The containers cgsense runs. Callers add their own setup before {@code start()}. */
 public final class Containers {
   private static final String BUILD_IMAGE = "cgsense-build";
   private static final String M2_VOLUME = "cgsense-m2";
@@ -14,13 +11,12 @@ public final class Containers {
   public static final String REPO_MIRROR = "/mirror";
   public static final List<Integer> JDKS = List.of(26, 25, 21, 17, 11, 8);
 
-  private Containers() {
-  }
+  private Containers() {}
 
   /**
    * A repository's build environment
    *
-   * @param slug   repository slug, used for the container name
+   * @param slug repository slug, used for the container name
    * @param mirror host path of the repository's bare clone
    */
   public static Container.Builder repo(String slug, Path mirror) {

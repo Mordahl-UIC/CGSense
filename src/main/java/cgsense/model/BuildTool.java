@@ -1,8 +1,8 @@
 package cgsense.model;
 
 /**
- * Build system used to compile and run a checked-out project. CommitMiner decides it and records
- * it in the pair, so nothing downstream detects it again.
+ * Build system used to compile and run a checked-out project. CommitMiner decides it and records it
+ * in the pair, so nothing downstream detects it again.
  */
 public enum BuildTool {
   MAVEN,

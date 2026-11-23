@@ -7,7 +7,7 @@ import java.util.List;
 
 /*
  * TestRunOptions is a frozen bundle of everything needed to run the tests once
-*/
+ */
 
 /** How to run a project's tests under the agent. Immutable. */
 public final class TestRunOptions {
@@ -107,7 +107,6 @@ public final class TestRunOptions {
         mvn,
         gradle);
   }
-
 
   /** Returns the default path to the dyncg-agent.jar file. */
   static Path defaultAgentJar() {

@@ -36,7 +36,6 @@ public final class Log {
 
     System.out.printf("Log level: %s\n", level);
 
-    
     root.addHandler(handler);
     root.setLevel(Level.INFO);
 

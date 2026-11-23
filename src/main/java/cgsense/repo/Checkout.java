@@ -1,6 +1,5 @@
 package cgsense.repo;
 
-import cgsense.model.BuildTool;
 import cgsense.model.Commit;
 import cgsense.tester.driver.RunResult;
 import cgsense.tester.driver.TestRunOptions;
@@ -17,7 +16,7 @@ public interface Checkout extends AutoCloseable {
 
   boolean build(int jdk) throws IOException;
 
-  /** Copies to host on this machine*/
+  /** Copies to host on this machine */
   Path copyTo(Path host) throws IOException;
 
   /** The checkout on this machine; what the driver scans. */

@@ -57,7 +57,7 @@ public class CommitMiner {
   private final JsonlWriter writer;
   private static final int MAX_PAIRS_PER_REPO = 100;
 
-  /** Index of the last JDK that built a pair*/
+  /** Index of the last JDK that built a pair */
   private int preferredJdk = 0;
 
   /**
@@ -71,6 +71,7 @@ public class CommitMiner {
 
   /**
    * Finds a JDK that builds both commits, starting from the one that worked last.
+   *
    * @return the JDK version, or -1 if no JDK builds both
    */
   private int findJdk(Repo repo, Commit parentCommit, Commit childCommit) throws IOException {

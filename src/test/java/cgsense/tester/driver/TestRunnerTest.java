@@ -37,8 +37,7 @@ class TestRunnerTest {
     Path wrapper = dir.resolve("gradlew");
     Files.writeString(wrapper, "#!/bin/sh\n");
     Path init = dir.resolve("init.gradle");
-    List<String> command =
-        TestRunner.gradleCommand(dir, options("FooTest,Bar*"), init);
+    List<String> command = TestRunner.gradleCommand(dir, options("FooTest,Bar*"), init);
     assertEquals(
         List.of(
             "sh",

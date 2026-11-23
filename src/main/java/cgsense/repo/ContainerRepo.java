@@ -26,13 +26,12 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 /**
- * A {@link Repo} in a container made by {@link Containers#repo}. The bare clone
- * at {@link Containers#REPO_MIRROR} is only read; 
+ * A {@link Repo} in a container made by {@link Containers#repo}. The bare clone at {@link
+ * Containers#REPO_MIRROR} is only read;
  *
  * All work is a bash
  *
- * script sent with {@link Container#sh}, and files come back with
- * {@link Container#copyOut}. 
+ * script sent with {@link Container#sh}, and files come back with {@link Container#copyOut}.
  *
  * The container belongs to the caller, who closes it.
  *
@@ -47,10 +46,7 @@ public final class ContainerRepo implements Repo {
   private static final String AGENT_JAR = TOOLS + "/cgsense-agent.jar";
   private static final String GRADLE_LISTENER = TOOLS + "/" + TestRunner.GRADLE_LISTENER;
 
-  /**
-   * Where a test run writes; copied back to the run's runDir. Runs are
-   * sequential.
-   */
+  /** Where a test run writes; copied back to the run's runDir. Runs are sequential. */
   private static final String OUT = "/out/run";
 
   /** Exit codes of timeout(1): the command was sent TERM, then KILL. */
@@ -58,17 +54,17 @@ public final class ContainerRepo implements Repo {
 
   private static final int KILLED = 137;
 
-  private static final String CHECKOUT_SCRIPT = """
+  private static final String CHECKOUT_SCRIPT =
+      """
       set -e
       rm -rf {dir}
       git clone -q --shared --no-checkout {mirror} {dir}
       git -C {dir} checkout -q -f {sha}
       """;
 
-  /**
-   * Starts from a clean tree, so nothing compiled on another JDK is left over.
-   */
-  private static final String BUILD_SCRIPT = """
+  /** Starts from a clean tree, so nothing compiled on another JDK is left over. */
+  private static final String BUILD_SCRIPT =
+      """
       set -e
       cd {dir}
       git clean -q -fdx
@@ -84,7 +80,8 @@ public final class ContainerRepo implements Repo {
 
   private static final String MAVEN_BUILD = "mvn -B test-compile";
 
-  private static final String TEST_SCRIPT = """
+  private static final String TEST_SCRIPT =
+      """
       set -e
       rm -rf {out}
       [ -f {agentJar} ] || { echo "cgsense: no {agentJar}; start the container withTools"; exit 127; }
@@ -109,15 +106,11 @@ public final class ContainerRepo implements Repo {
 
   private final Container box;
 
-  /**
-   * SHAs checked out and not yet closed; two checkouts of one SHA would share a
-   * directory.
-   */
+  /** SHAs checked out and not yet closed; two checkouts of one SHA would share a directory. */
   private final Set<String> open = new HashSet<>();
 
   /**
-   * Build outcome per "sha@jdk". It outlives checkouts: adjacent pairs share
-   * commits, so this
+   * Build outcome per "sha@jdk". It outlives checkouts: adjacent pairs share commits, so this
    * avoids rebuilding them.
    */
   private final Map<String, Boolean> built = new HashMap<>();
@@ -126,14 +119,12 @@ public final class ContainerRepo implements Repo {
     this.box = box;
   }
 
-  /**
-   * Adds what running tests needs to a container: the agent and the Gradle test
-   * listener.
-   */
+  /** Adds what running tests needs to a container: the agent and the Gradle test listener. */
   public static Container.Builder withTools(Container.Builder container, Path agentJar)
       throws IOException {
     byte[] listener;
-    try (InputStream in = ContainerRepo.class.getResourceAsStream("/cgsense/tester/test-listener.gradle")) {
+    try (InputStream in =
+        ContainerRepo.class.getResourceAsStream("/cgsense/tester/test-listener.gradle")) {
       listener = in.readAllBytes();
     }
     return container.copyIn(agentJar, AGENT_JAR).write(GRADLE_LISTENER, listener);
@@ -146,11 +137,12 @@ public final class ContainerRepo implements Repo {
       throw new IllegalStateException(sha + " is already checked out in " + box.name());
     }
     String dir = "/work/" + sha;
-    CommandResult r = box.sh(
-        CHECKOUT_SCRIPT
-            .replace("{dir}", quote(dir))
-            .replace("{mirror}", Containers.REPO_MIRROR)
-            .replace("{sha}", quote(sha)));
+    CommandResult r =
+        box.sh(
+            CHECKOUT_SCRIPT
+                .replace("{dir}", quote(dir))
+                .replace("{mirror}", Containers.REPO_MIRROR)
+                .replace("{sha}", quote(sha)));
     if (!r.ok()) {
       open.remove(sha);
       throw new IOException(
@@ -173,7 +165,7 @@ public final class ContainerRepo implements Repo {
       this.commit = commit;
     }
 
-    @Override 
+    @Override
     public Commit commit() {
       return this.commit;
     }
@@ -183,7 +175,9 @@ public final class ContainerRepo implements Repo {
       String key = this.commit.sha() + "@" + jdk;
       Boolean cached = built.get(key);
       if (cached != null) {
-        LOG.fine(String.format("%s JDK %d cached: %s", this.commit.sha(), jdk, cached ? "OK" : "FAILED"));
+        LOG.fine(
+            String.format(
+                "%s JDK %d cached: %s", this.commit.sha(), jdk, cached ? "OK" : "FAILED"));
       } else {
         cached = compile(jdk);
         built.put(key, cached);
@@ -229,7 +223,8 @@ public final class ContainerRepo implements Repo {
     @Override
     public Path dir() {
       if (host == null) {
-        throw new IllegalStateException(this.commit.sha() + " is only in the container; copyTo first");
+        throw new IllegalStateException(
+            this.commit.sha() + " is only in the container; copyTo first");
       }
       return host;
     }
@@ -247,14 +242,18 @@ public final class ContainerRepo implements Repo {
 
       // Built against the host copy (which decides e.g. whether gradlew exists), then
       // moved over.
-      List<String> command = TestRunner.buildCommand(hostDir, this.commit.buildTool(), options, Path.of(GRADLE_LISTENER)).stream()
-          .map(arg -> toContainer(arg, hostDir, dir))
-          .toList();
+      List<String> command =
+          TestRunner.buildCommand(
+                  hostDir, this.commit.buildTool(), options, Path.of(GRADLE_LISTENER))
+              .stream()
+              .map(arg -> toContainer(arg, hostDir, dir))
+              .toList();
       String agent = TestRunner.agentOption(options, AGENT_JAR, OUT + "/dumps");
       Integer timeoutSeconds = options.timeoutSeconds();
 
       long started = System.nanoTime();
-      CommandResult r = box.sh(testScript(dir, Containers.jdkHome(jdk), agent, command, timeoutSeconds));
+      CommandResult r =
+          box.sh(testScript(dir, Containers.jdkHome(jdk), agent, command, timeoutSeconds));
       long elapsed = System.nanoTime() - started;
       if (r.exitCode() == -1) {
         throw new IOException("could not run tests in " + box.name() + ": " + r.output());
@@ -265,15 +264,19 @@ public final class ContainerRepo implements Repo {
         throw new IOException("test script failed in " + box.name() + ": " + r.output());
       }
 
-      boolean timedOut = timeoutSeconds != null && (r.exitCode() == TIMED_OUT || r.exitCode() == KILLED);
+      boolean timedOut =
+          timeoutSeconds != null && (r.exitCode() == TIMED_OUT || r.exitCode() == KILLED);
       return TestRunner.collect(
-          index, runDir, command, timedOut ? null : r.exitCode(), timedOut, elapsed, this.commit.buildTool());
+          index,
+          runDir,
+          command,
+          timedOut ? null : r.exitCode(),
+          timedOut,
+          elapsed,
+          this.commit.buildTool());
     }
 
-    /**
-     * Removes the checkout from the container; a copy made with copyTo is the
-     * caller's.
-     */
+    /** Removes the checkout from the container; a copy made with copyTo is the caller's. */
     @Override
     public void close() throws IOException {
       try {
@@ -293,14 +296,15 @@ public final class ContainerRepo implements Repo {
   }
 
   /**
-   * The test script for one run. Every value is quoted: the header holds a
-   * newline, which unquoted
+   * The test script for one run. Every value is quoted: the header holds a newline, which unquoted
    * would end the printf line and run "$ ..." as a command.
    */
   static String testScript(
       String dir, String javaHome, String agent, List<String> command, Integer timeoutSeconds) {
-    String header = "$ cd " + dir + "\n$ JAVA_TOOL_OPTIONS='" + agent + "' " + String.join(" ", command);
-    String timeout = timeoutSeconds == null ? "" : "timeout --kill-after=30 " + timeoutSeconds + " ";
+    String header =
+        "$ cd " + dir + "\n$ JAVA_TOOL_OPTIONS='" + agent + "' " + String.join(" ", command);
+    String timeout =
+        timeoutSeconds == null ? "" : "timeout --kill-after=30 " + timeoutSeconds + " ";
     return TEST_SCRIPT
         .replace("{dir}", quote(dir))
         .replace("{out}", OUT)

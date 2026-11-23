@@ -9,30 +9,22 @@ import java.util.List;
 
 /**
  * VersionRunner is the coordinator for one version.
- * 
- * run the tests N times (Checkout.runTests, with the checkout's build tool)
- * build the call graph from all runs (GraphBuilder)
- * write it to disk (VersionGraph)
- * print warnings and a summary
- * 
+ *
+ * <p>run the tests N times (Checkout.runTests, with the checkout's build tool) build the call graph
+ * from all runs (GraphBuilder) write it to disk (VersionGraph) print warnings and a summary
  */
-
 public final class VersionRunner {
 
-  private VersionRunner() {
-  }
+  private VersionRunner() {}
 
   /**
-   * Runs the project's tests under the dynamic-callgraph Java agent and writes
-   * {@code
+   * Runs the project's tests under the dynamic-callgraph Java agent and writes {@code
    * callgraph.json} into {@code outDir}.
    *
-   * @param label   label recorded in the graph, such as "before" or "after"
-   * @param commit  commit SHA recorded as metadata; it is not checked out or
-   *                verified
-   * @param project the checked-out project; its tests run wherever it is checked
-   *                out
-   * @param outDir  directory where graph data and run data are written
+   * @param label label recorded in the graph, such as "before" or "after"
+   * @param commit commit SHA recorded as metadata; it is not checked out or verified
+   * @param project the checked-out project; its tests run wherever it is checked out
+   * @param outDir directory where graph data and run data are written
    * @param repeats number of times to run the tests
    * @param options test execution and instrumentation options
    * @param sources information about the project's source directories
@@ -77,7 +69,8 @@ public final class VersionRunner {
       runs.add(run);
     }
 
-    VersionGraph graph = GraphBuilder.build(label, commit, projectDir, options.includes, runs, sources);
+    VersionGraph graph =
+        GraphBuilder.build(label, commit, projectDir, options.includes, runs, sources);
     Path graphPath = graph.write(outDir);
 
     long runsWithoutTests = ((Number) graph.stats().get("runs_without_tests")).longValue();
@@ -95,8 +88,7 @@ public final class VersionRunner {
           label, runsWithoutTests, runs.size());
     }
 
-    long tests = ((Number) graph.stats().get("tests"))
-        .longValue();
+    long tests = ((Number) graph.stats().get("tests")).longValue();
     // We check how many tests were actually executed across all runs. If this
     // number is greater than
     // zero but the number of nodes in the call graph is zero, it indicates that the
